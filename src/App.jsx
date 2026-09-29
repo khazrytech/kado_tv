@@ -11,7 +11,7 @@ import {
   getCategories, toggleFavorite, isFavorite, saveWatch,
   adminList, adminUpsert, adminDelete, adminUpdateUser
 } from "./lib/api";
-import Auth from "./pages/Auth";
+import Auth, { ResetPassword } from "./pages/Auth";
 import Player from "./components/Player";
 
 function App() {
