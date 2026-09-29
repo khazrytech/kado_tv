@@ -8,7 +8,9 @@ import {
   Mail,
   UserRound,
   Chrome,
-  ShieldCheck
+  ShieldCheck,
+  Sparkles,
+  Play
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
@@ -26,16 +28,16 @@ export default function Auth() {
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
 
-  function clearMessages() {
+  const clearMessages = () => {
     setMsg("");
     setError("");
-  }
+  };
 
-  function changeMode(next) {
+  const changeMode = (next) => {
     clearMessages();
     setMode(next);
     setOtp("");
-  }
+  };
 
   async function login(e) {
     e.preventDefault();
@@ -75,7 +77,7 @@ export default function Auth() {
         data: {
           display_name: name.trim()
         },
-        emailRedirectTo: SITE_URL + "/auth"
+        emailRedirectTo: `${SITE_URL}/auth`
       }
     });
 
@@ -158,7 +160,7 @@ export default function Auth() {
     const { error } = await supabase.auth.resetPasswordForEmail(
       email.trim(),
       {
-        redirectTo: SITE_URL + "/reset-password"
+        redirectTo: `${SITE_URL}/reset-password`
       }
     );
 
@@ -178,7 +180,7 @@ export default function Auth() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: SITE_URL + "/"
+        redirectTo: `${SITE_URL}/`
       }
     });
 
@@ -189,315 +191,430 @@ export default function Auth() {
   }
 
   return (
-    <div className="auth">
-      <div className="auth-glow" />
+    <div className="auth-page">
+      <div className="auth-bg">
+        <div className="auth-orb orb-one" />
+        <div className="auth-orb orb-two" />
+        <div className="auth-orb orb-three" />
+        <div className="auth-grid" />
+      </div>
 
-      <div className="auth-card">
+      <div className="auth-shell">
 
-        <div className="auth-brand">
-          <span>K</span>
-          <b>KadoTV</b>
+        <div className="auth-showcase">
+          <div className="showcase-brand">
+            <div className="brand-mark">
+              <Play size={22} fill="currentColor" />
+            </div>
+            <span>KadoTV</span>
+          </div>
+
+          <div className="showcase-content">
+            <div className="live-pill">
+              <span />
+              PREMIUM STREAMING
+            </div>
+
+            <h2>
+              Your entertainment.
+              <strong> Your way.</strong>
+            </h2>
+
+            <p>
+              Movies, series and sports — all in one modern streaming
+              experience.
+            </p>
+
+            <div className="showcase-features">
+              <span><Sparkles size={14} /> HD Streaming</span>
+              <span><Play size={14} /> Movies & Series</span>
+              <span><ShieldCheck size={14} /> Secure Account</span>
+            </div>
+          </div>
+
+          <div className="showcase-footer">
+            <span>© KadoTV</span>
+            <span>Stream smarter.</span>
+          </div>
         </div>
 
-        {mode === "otp" && (
-          <button
-            className="back"
-            onClick={() => changeMode("login")}
-          >
-            <ArrowLeft size={16} />
-            Back to login
-          </button>
-        )}
+        <div className="auth-panel">
 
-        <div className="auth-copy">
-          <h1>
-            {mode === "login" && "Welcome back."}
-            {mode === "signup" && "Create your account."}
-            {mode === "forgot" && "Reset your password."}
-            {mode === "otp" && "Enter your code."}
-          </h1>
+          <div className="mobile-brand">
+            <div className="brand-mark">
+              <Play size={20} fill="currentColor" />
+            </div>
+            <b>KadoTV</b>
+          </div>
 
-          <p>
-            {mode === "login" &&
-              "Sign in to continue watching on KadoTV."}
-
-            {mode === "signup" &&
-              "Create your KadoTV account and start watching."}
-
-            {mode === "forgot" &&
-              "Enter your email and we'll send you password reset instructions."}
-
-            {mode === "otp" &&
-              "Enter the one-time code sent to " + email}
-          </p>
-        </div>
-
-        {mode === "login" && (
-          <>
-            <form onSubmit={login}>
-              <label>Email address</label>
-
-              <div className="input-icon">
-                <Mail />
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                />
-              </div>
-
-              <label>Password</label>
-
-              <PasswordInput
-                value={password}
-                setValue={setPassword}
-                show={showPassword}
-                setShow={setShowPassword}
-              />
-
-              <div className="auth-row">
-                <span />
-                <button
-                  type="button"
-                  className="text-btn"
-                  onClick={() => changeMode("forgot")}
-                >
-                  Forgot password?
-                </button>
-              </div>
-
-              <button
-                className="primary-btn full"
-                disabled={busy}
-              >
-                {busy ? "Signing in…" : "Sign in"}
-              </button>
-            </form>
-
-            <Divider />
-
-            <button
-              className="google-btn"
-              onClick={googleLogin}
-              disabled={busy}
-            >
-              <Chrome size={18} />
-              Continue with Google
-            </button>
-
-            <button
-              className="secondary-btn full"
-              onClick={sendOtp}
-              disabled={busy || !email.trim()}
-            >
-              <KeyRound size={17} />
-              Sign in with Email OTP
-            </button>
-
-            <p className="switch-auth">
-              Don't have an account?
-              <button onClick={() => changeMode("signup")}>
-                Create one
-              </button>
-            </p>
-          </>
-        )}
-
-        {mode === "signup" && (
-          <>
-            <form onSubmit={signup}>
-              <label>Full name</label>
-
-              <div className="input-icon">
-                <UserRound />
-                <input
-                  type="text"
-                  required
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  placeholder="Your name"
-                />
-              </div>
-
-              <label>Email address</label>
-
-              <div className="input-icon">
-                <Mail />
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                />
-              </div>
-
-              <label>Password</label>
-
-              <PasswordInput
-                value={password}
-                setValue={setPassword}
-                show={showPassword}
-                setShow={setShowPassword}
-              />
-
-              <label>Confirm password</label>
-
-              <div className="input-icon">
-                <LockKeyhole />
-                <input
-                  type={showPassword ? "text" : "password"}
-                  required
-                  value={confirm}
-                  onChange={e => setConfirm(e.target.value)}
-                  placeholder="Repeat password"
-                />
-              </div>
-
-              <button
-                className="primary-btn full"
-                disabled={busy}
-              >
-                {busy ? "Creating account…" : "Create account"}
-              </button>
-            </form>
-
-            <Divider />
-
-            <button
-              className="google-btn"
-              onClick={googleLogin}
-              disabled={busy}
-            >
-              <Chrome size={18} />
-              Continue with Google
-            </button>
-
-            <p className="switch-auth">
-              Already have an account?
-              <button onClick={() => changeMode("login")}>
-                Sign in
-              </button>
-            </p>
-          </>
-        )}
-
-        {mode === "otp" && (
-          <form onSubmit={verifyOtp}>
-            <label>Verification code</label>
-
-            <input
-              className="otp-input"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              maxLength={8}
-              required
-              value={otp}
-              onChange={e =>
-                setOtp(e.target.value.replace(/\D/g, ""))
-              }
-              placeholder="000000"
-            />
-
-            <button
-              className="primary-btn full"
-              disabled={busy}
-            >
-              {busy ? "Verifying…" : "Verify & continue"}
-            </button>
-
+          {mode === "otp" && (
             <button
               type="button"
-              className="secondary-btn full"
-              onClick={sendOtp}
-              disabled={busy}
-            >
-              Resend OTP
-            </button>
-          </form>
-        )}
-
-        {mode === "forgot" && (
-          <>
-            <form onSubmit={forgotPassword}>
-              <label>Email address</label>
-
-              <div className="input-icon">
-                <Mail />
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                />
-              </div>
-
-              <button
-                className="primary-btn full"
-                disabled={busy}
-              >
-                {busy ? "Sending…" : "Send reset email"}
-              </button>
-            </form>
-
-            <button
-              className="back auth-back-bottom"
+              className="auth-back"
               onClick={() => changeMode("login")}
             >
               <ArrowLeft size={16} />
               Back to login
             </button>
-          </>
-        )}
+          )}
 
-        {(msg || error) && (
-          <div className={error ? "auth-msg error" : "auth-msg"}>
-            {error || msg}
+          <div className="auth-heading">
+            <div className="heading-icon">
+              {mode === "login" && <LockKeyhole size={20} />}
+              {mode === "signup" && <UserRound size={20} />}
+              {mode === "forgot" && <KeyRound size={20} />}
+              {mode === "otp" && <ShieldCheck size={20} />}
+            </div>
+
+            <h1>
+              {mode === "login" && "Welcome back"}
+              {mode === "signup" && "Create your account"}
+              {mode === "forgot" && "Reset your password"}
+              {mode === "otp" && "Verify your email"}
+            </h1>
+
+            <p>
+              {mode === "login" &&
+                "Sign in and continue watching on KadoTV."}
+
+              {mode === "signup" &&
+                "Join KadoTV and start your streaming journey."}
+
+              {mode === "forgot" &&
+                "We'll send instructions to reset your password."}
+
+              {mode === "otp" &&
+                `Enter the code sent to ${email}`}
+            </p>
           </div>
-        )}
 
-        <div className="secure">
-          <ShieldCheck size={15} />
-          Secure authentication powered by Supabase
+          {mode === "login" && (
+            <>
+              <form className="auth-form" onSubmit={login}>
+
+                <AuthInput
+                  icon={<Mail size={18} />}
+                  label="Email address"
+                  type="email"
+                  value={email}
+                  setValue={setEmail}
+                  placeholder="you@example.com"
+                />
+
+                <AuthInput
+                  icon={<LockKeyhole size={18} />}
+                  label="Password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  setValue={setPassword}
+                  placeholder="Enter your password"
+                  right={
+                    <button
+                      type="button"
+                      className="input-action"
+                      onClick={() => setShowPassword(v => !v)}
+                    >
+                      {showPassword
+                        ? <EyeOff size={18} />
+                        : <Eye size={18} />}
+                    </button>
+                  }
+                />
+
+                <div className="forgot-row">
+                  <span />
+                  <button
+                    type="button"
+                    className="link-button"
+                    onClick={() => changeMode("forgot")}
+                  >
+                    Forgot password?
+                  </button>
+                </div>
+
+                <button
+                  type="submit"
+                  className="auth-primary"
+                  disabled={busy}
+                >
+                  {busy ? (
+                    <>
+                      <span className="spinner" />
+                      Signing in...
+                    </>
+                  ) : (
+                    <>
+                      Sign in
+                      <ArrowLeft className="arrow-right" size={18} />
+                    </>
+                  )}
+                </button>
+              </form>
+
+              <Divider />
+
+              <button
+                type="button"
+                className="auth-google"
+                onClick={googleLogin}
+                disabled={busy}
+              >
+                <span className="google-icon">G</span>
+                <span>Continue with Google</span>
+              </button>
+
+              <button
+                type="button"
+                className="auth-otp"
+                onClick={sendOtp}
+                disabled={busy || !email.trim()}
+              >
+                <KeyRound size={17} />
+                Sign in with Email OTP
+              </button>
+
+              <div className="auth-switch">
+                <span>Don't have an account?</span>
+                <button
+                  type="button"
+                  onClick={() => changeMode("signup")}
+                >
+                  Create one
+                </button>
+              </div>
+            </>
+          )}
+
+          {mode === "signup" && (
+            <>
+              <form className="auth-form" onSubmit={signup}>
+
+                <AuthInput
+                  icon={<UserRound size={18} />}
+                  label="Full name"
+                  type="text"
+                  value={name}
+                  setValue={setName}
+                  placeholder="Your name"
+                />
+
+                <AuthInput
+                  icon={<Mail size={18} />}
+                  label="Email address"
+                  type="email"
+                  value={email}
+                  setValue={setEmail}
+                  placeholder="you@example.com"
+                />
+
+                <AuthInput
+                  icon={<LockKeyhole size={18} />}
+                  label="Password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  setValue={setPassword}
+                  placeholder="Create a password"
+                  right={
+                    <button
+                      type="button"
+                      className="input-action"
+                      onClick={() => setShowPassword(v => !v)}
+                    >
+                      {showPassword
+                        ? <EyeOff size={18} />
+                        : <Eye size={18} />}
+                    </button>
+                  }
+                />
+
+                <AuthInput
+                  icon={<ShieldCheck size={18} />}
+                  label="Confirm password"
+                  type={showPassword ? "text" : "password"}
+                  value={confirm}
+                  setValue={setConfirm}
+                  placeholder="Repeat your password"
+                />
+
+                <button
+                  type="submit"
+                  className="auth-primary"
+                  disabled={busy}
+                >
+                  {busy ? (
+                    <>
+                      <span className="spinner" />
+                      Creating account...
+                    </>
+                  ) : (
+                    <>
+                      Create account
+                      <ArrowLeft className="arrow-right" size={18} />
+                    </>
+                  )}
+                </button>
+              </form>
+
+              <Divider />
+
+              <button
+                type="button"
+                className="auth-google"
+                onClick={googleLogin}
+                disabled={busy}
+              >
+                <span className="google-icon">G</span>
+                <span>Continue with Google</span>
+              </button>
+
+              <div className="auth-switch">
+                <span>Already have an account?</span>
+                <button
+                  type="button"
+                  onClick={() => changeMode("login")}
+                >
+                  Sign in
+                </button>
+              </div>
+            </>
+          )}
+
+          {mode === "otp" && (
+            <form className="auth-form" onSubmit={verifyOtp}>
+              <div className="otp-box">
+                <KeyRound size={22} />
+                <span>Verification code</span>
+              </div>
+
+              <input
+                className="otp-input"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={8}
+                required
+                value={otp}
+                onChange={e =>
+                  setOtp(e.target.value.replace(/\D/g, ""))
+                }
+                placeholder="000000"
+              />
+
+              <button
+                type="submit"
+                className="auth-primary"
+                disabled={busy}
+              >
+                {busy ? (
+                  <>
+                    <span className="spinner" />
+                    Verifying...
+                  </>
+                ) : (
+                  <>
+                    Verify & continue
+                    <ArrowLeft className="arrow-right" size={18} />
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                className="auth-otp"
+                onClick={sendOtp}
+                disabled={busy}
+              >
+                <KeyRound size={17} />
+                Resend verification code
+              </button>
+            </form>
+          )}
+
+          {mode === "forgot" && (
+            <>
+              <form className="auth-form" onSubmit={forgotPassword}>
+                <AuthInput
+                  icon={<Mail size={18} />}
+                  label="Email address"
+                  type="email"
+                  value={email}
+                  setValue={setEmail}
+                  placeholder="you@example.com"
+                />
+
+                <button
+                  type="submit"
+                  className="auth-primary"
+                  disabled={busy}
+                >
+                  {busy ? (
+                    <>
+                      <span className="spinner" />
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      Send reset email
+                      <ArrowLeft className="arrow-right" size={18} />
+                    </>
+                  )}
+                </button>
+              </form>
+
+              <button
+                type="button"
+                className="auth-back center-back"
+                onClick={() => changeMode("login")}
+              >
+                <ArrowLeft size={16} />
+                Back to login
+              </button>
+            </>
+          )}
+
+          {(msg || error) && (
+            <div className={`auth-message ${error ? "is-error" : "is-success"}`}>
+              <span />
+              {error || msg}
+            </div>
+          )}
+
+          <div className="auth-security">
+            <ShieldCheck size={15} />
+            <span>Secure authentication powered by Supabase</span>
+          </div>
+
         </div>
-
       </div>
     </div>
   );
 }
 
-function PasswordInput({
+function AuthInput({
+  icon,
+  label,
+  type,
   value,
   setValue,
-  show,
-  setShow
+  placeholder,
+  right
 }) {
   return (
-    <div className="input-icon">
-      <LockKeyhole />
+    <div className="auth-field">
+      <label>{label}</label>
 
-      <input
-        type={show ? "text" : "password"}
-        required
-        value={value}
-        onChange={e => setValue(e.target.value)}
-        placeholder="••••••••"
-      />
+      <div className="auth-input-wrap">
+        <span className="field-icon">{icon}</span>
 
-      <button
-        type="button"
-        className="password-toggle"
-        onClick={() => setShow(v => !v)}
-      >
-        {show ? (
-          <EyeOff size={17} />
-        ) : (
-          <Eye size={17} />
-        )}
-      </button>
+        <input
+          type={type}
+          required
+          value={value}
+          onChange={e => setValue(e.target.value)}
+          placeholder={placeholder}
+        />
+
+        {right}
+      </div>
     </div>
   );
 }
@@ -505,7 +622,9 @@ function PasswordInput({
 function Divider() {
   return (
     <div className="auth-divider">
-      <span>OR</span>
+      <span />
+      <b>OR</b>
+      <span />
     </div>
   );
 }
@@ -543,7 +662,7 @@ export function ResetPassword() {
     if (error) {
       setError(error.message);
     } else {
-      setMsg("Password updated successfully. Redirecting to login...");
+      setMsg("Password updated successfully.");
 
       setTimeout(() => {
         window.location.assign("/auth");
@@ -552,69 +671,69 @@ export function ResetPassword() {
   }
 
   return (
-    <div className="auth">
-      <div className="auth-glow" />
+    <div className="auth-page">
+      <div className="auth-bg">
+        <div className="auth-orb orb-one" />
+        <div className="auth-orb orb-two" />
+        <div className="auth-orb orb-three" />
+        <div className="auth-grid" />
+      </div>
 
-      <div className="auth-card">
-
-        <div className="auth-brand">
-          <span>K</span>
+      <div className="auth-panel reset-panel">
+        <div className="mobile-brand">
+          <div className="brand-mark">
+            <Play size={20} fill="currentColor" />
+          </div>
           <b>KadoTV</b>
         </div>
 
-        <div className="auth-copy">
-          <h1>Choose a new password.</h1>
-          <p>
-            Create a new password for your KadoTV account.
-          </p>
+        <div className="auth-heading">
+          <div className="heading-icon">
+            <KeyRound size={20} />
+          </div>
+          <h1>Choose a new password</h1>
+          <p>Create a new secure password for your KadoTV account.</p>
         </div>
 
-        <form onSubmit={updatePassword}>
-
-          <label>New password</label>
-
-          <input
-            className="plain-auth-input"
+        <form className="auth-form" onSubmit={updatePassword}>
+          <AuthInput
+            icon={<LockKeyhole size={18} />}
+            label="New password"
             type="password"
-            minLength={6}
-            required
             value={password}
-            onChange={e => setPassword(e.target.value)}
-            placeholder="••••••••"
+            setValue={setPassword}
+            placeholder="New password"
           />
 
-          <label>Confirm password</label>
-
-          <input
-            className="plain-auth-input"
+          <AuthInput
+            icon={<ShieldCheck size={18} />}
+            label="Confirm password"
             type="password"
-            minLength={6}
-            required
             value={confirm}
-            onChange={e => setConfirm(e.target.value)}
-            placeholder="••••••••"
+            setValue={setConfirm}
+            placeholder="Repeat password"
           />
 
           <button
-            className="primary-btn full"
+            type="submit"
+            className="auth-primary"
             disabled={busy}
           >
-            {busy ? "Updating…" : "Update password"}
+            {busy ? "Updating..." : "Update password"}
           </button>
-
         </form>
 
         {(msg || error) && (
-          <div className={error ? "auth-msg error" : "auth-msg"}>
+          <div className={`auth-message ${error ? "is-error" : "is-success"}`}>
+            <span />
             {error || msg}
           </div>
         )}
 
-        <div className="secure">
+        <div className="auth-security">
           <ShieldCheck size={15} />
-          KadoTV account security
+          <span>KadoTV account security</span>
         </div>
-
       </div>
     </div>
   );
