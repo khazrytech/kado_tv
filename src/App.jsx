@@ -129,7 +129,9 @@ function Shell({ session, profile, setProfile }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileNav, setMobileNav] = useState(false);
-  const admin = profile?.role === "admin";
+  // TEMPORARY ADMIN ACCESS
+  // Authentication will be restored later.
+  const admin = true;
 
   const nav = [
     ["/", "Home", Home],
@@ -290,13 +292,10 @@ function Shell({ session, profile, setProfile }) {
               element={<WatchPage session={session} />}
             />
 
+            {/* TEMPORARY: Admin accessible without login */}
             <Route
               path="/admin"
-              element={
-                admin
-                  ? <AdminPage />
-                  : <Navigate to="/" replace />
-              }
+              element={<AdminPage />}
             />
 
             <Route
