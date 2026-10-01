@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import {
   Bell, Bookmark, Film, Home, LogOut, Menu, Play, Search, Settings,
-  Shield, Tv, User, X, Pencil, Trash2, Ban, CheckCircle2, ChevronRight
+  Shield, Tv, User, X, Pencil, Trash2, Ban, CheckCircle2, ChevronRight,
+  Radio, Clapperboard, Layers3, Trophy, Baby, Sparkles
 } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import {
@@ -343,65 +344,394 @@ function HomePage({ session }) {
   const series = useData(getSeries);
   const featured = useData(getFeaturedChannels);
 
-  const hero = featured.data[0];
+  const [slide, setSlide] = useState(0);
+
+  const featuredItems = featured.data || [];
+
+  useEffect(() => {
+    if (featuredItems.length < 2) return;
+
+    const timer = setInterval(() => {
+      setSlide((current) => (current + 1) % featuredItems.length);
+    }, 5500);
+
+    return () => clearInterval(timer);
+  }, [featuredItems.length]);
+
+  useEffect(() => {
+    if (slide >= featuredItems.length && featuredItems.length > 0) {
+      setSlide(0);
+    }
+  }, [slide, featuredItems.length]);
 
   return (
-    <div className="home">
-      {hero ? (
-        <Hero item={hero} type="channel" />
-      ) : (
-        <EmptyHero />
+    <div className="home home-modern">
+
+      <HomeHeroSlider
+        items={featuredItems}
+        index={slide}
+        setIndex={setSlide}
+      />
+
+      <QuickCategories />
+
+      {channels.data.length > 0 && (
+        <Section title="Live Channels" action="/channels">
+          <CardRow
+            items={channels.data.slice(0, 10)}
+            type="channel"
+            session={session}
+          />
+        </Section>
       )}
 
-      <Section title="Live Channels" action="/channels">
-        <CardRow
-          items={channels.data.slice(0, 8)}
-          type="channel"
-          session={session}
-        />
-      </Section>
+      {movies.data.length > 0 && (
+        <Section title="Trending Movies" action="/movies">
+          <CardRow
+            items={movies.data.slice(0, 10)}
+            type="movie"
+            session={session}
+          />
+        </Section>
+      )}
 
-      <Section title="Movies" action="/movies">
-        <CardRow
-          items={movies.data.slice(0, 8)}
-          type="movie"
-          session={session}
-        />
-      </Section>
+      {series.data.length > 0 && (
+        <Section title="Popular Series" action="/series">
+          <CardRow
+            items={series.data.slice(0, 10)}
+            type="series"
+            session={session}
+          />
+        </Section>
+      )}
 
-      <Section title="Series" action="/series">
-        <CardRow
-          items={series.data.slice(0, 8)}
-          type="series"
-          session={session}
-        />
-      </Section>
-
-      {(channels.loading ||
-        movies.loading ||
-        series.loading) && (
-        <div className="loading-line">
-          Loading your library…
+      {(channels.loading || movies.loading || series.loading) && (
+        <div className="home-loading">
+          <span className="loading-dot"></span>
+          <span>Loading your entertainment...</span>
         </div>
       )}
+
+      {!channels.loading &&
+        !movies.loading &&
+        !series.loading &&
+        channels.data.length === 0 &&
+        movies.data.length === 0 &&
+        series.data.length === 0 && (
+          <div className="home-empty-note">
+            <Sparkles size={17} />
+            <span>Your KadoTV library is ready for content.</span>
+          </div>
+        )}
+
+      <HomeFooter />
     </div>
   );
 }
 
-function EmptyHero() {
+
+function HomeHeroSlider({ items, index, setIndex }) {
+  const navigate = useNavigate();
+
+  if (!items.length) {
+    return (
+      <section className="home-hero cinematic-hero hero-fallback">
+
+        <div className="hero-glow hero-glow-one"></div>
+        <div className="hero-glow hero-glow-two"></div>
+        <div className="hero-grid"></div>
+
+        <div className="hero-content">
+
+          <span className="hero-kicker">
+            <span className="live-dot"></span>
+            KADOTV
+          </span>
+
+          <h1>
+            Your world of
+            <strong> entertainment.</strong>
+          </h1>
+
+          <p>
+            Live channels, movies and series in one modern streaming
+            experience.
+          </p>
+
+          <div className="hero-actions">
+
+            <button
+              className="primary-btn hero-watch-btn"
+              onClick={() => navigate("/channels")}
+            >
+              <Play size={17} fill="currentColor" />
+              Explore KadoTV
+            </button>
+
+            <button
+              className="hero-secondary-btn"
+              onClick={() => navigate("/movies")}
+            >
+              Browse Movies
+              <ChevronRight size={16} />
+            </button>
+
+          </div>
+        </div>
+
+        <div className="hero-floating-card">
+          <div className="hero-floating-icon">
+            <Play size={17} fill="currentColor" />
+          </div>
+
+          <div>
+            <b>Ready to watch</b>
+            <span>Discover something new</span>
+          </div>
+        </div>
+
+      </section>
+    );
+  }
+
+  const item = items[index] || items[0];
+
+  const title =
+    item.name ||
+    item.title ||
+    item.channel_name ||
+    "Featured on KadoTV";
+
+  const description =
+    item.description ||
+    "Discover your next favorite entertainment on KadoTV.";
+
+  const image =
+    item.backdrop_url ||
+    item.backdrop ||
+    item.poster_url ||
+    item.poster ||
+    item.logo_url ||
+    item.logo ||
+    "";
+
   return (
-    <div className="hero empty">
-      <div>
-        <span className="eyebrow">KadoTV</span>
-        <h1>Your streaming library.</h1>
-        <p>
-          Add your real channels, movies and series
-          from the admin panel to start filling KadoTV.
-        </p>
+    <section
+      className="home-hero cinematic-hero hero-slide"
+      style={{
+        backgroundImage: `
+          linear-gradient(
+            90deg,
+            rgba(4,5,10,.98) 0%,
+            rgba(4,5,10,.86) 32%,
+            rgba(4,5,10,.42) 68%,
+            rgba(4,5,10,.78) 100%
+          ),
+          url("${image}")
+        `
+      }}
+    >
+
+      <div className="hero-slide-glow"></div>
+
+      <div className="hero-content" key={item.id || index}>
+
+        <span className="hero-kicker">
+          <span className="live-dot"></span>
+          FEATURED ON KADOTV
+        </span>
+
+        <h1>{title}</h1>
+
+        <p>{description}</p>
+
+        <div className="hero-actions">
+
+          <button
+            className="primary-btn hero-watch-btn"
+            onClick={() => {
+              if (item.id) {
+                navigate(`/watch/channel/${item.id}`);
+              } else {
+                navigate("/channels");
+              }
+            }}
+          >
+            <Play size={17} fill="currentColor" />
+            Watch Now
+          </button>
+
+          <button
+            className="hero-secondary-btn"
+            onClick={() => navigate("/channels")}
+          >
+            Browse Channels
+            <ChevronRight size={16} />
+          </button>
+
+        </div>
       </div>
-    </div>
+
+      <div className="hero-bottom">
+
+        <div className="hero-dots">
+
+          {items.map((entry, i) => (
+            <button
+              key={entry.id || i}
+              className={i === index ? "hero-dot active" : "hero-dot"}
+              onClick={() => setIndex(i)}
+              aria-label={`Slide ${i + 1}`}
+            />
+          ))}
+
+        </div>
+
+        <div className="hero-counter">
+          <span>
+            {String(index + 1).padStart(2, "0")}
+          </span>
+
+          <i>/</i>
+
+          <span>
+            {String(items.length).padStart(2, "0")}
+          </span>
+        </div>
+
+      </div>
+
+    </section>
   );
 }
+
+
+function QuickCategories() {
+  const navigate = useNavigate();
+
+  const categories = [
+    ["/channels", "Live TV", Radio],
+    ["/movies", "Movies", Film],
+    ["/series", "Series", Clapperboard],
+    ["/channels?category=Sports", "Sports", Trophy],
+    ["/movies?category=Kids", "Kids", Baby],
+    ["/search", "Explore", Layers3]
+  ];
+
+  return (
+    <section className="quick-categories">
+
+      <div className="quick-head">
+
+        <div>
+          <span className="mini-label">
+            DISCOVER
+          </span>
+
+          <h2>
+            What do you want to watch?
+          </h2>
+        </div>
+
+      </div>
+
+      <div className="category-rail">
+
+        {categories.map(([path, label, Icon]) => (
+          <button
+            key={label}
+            className="category-card"
+            onClick={() => navigate(path)}
+          >
+
+            <span className="category-icon">
+              <Icon size={19} />
+            </span>
+
+            <span className="category-name">
+              {label}
+            </span>
+
+            <ChevronRight
+              size={15}
+              className="category-arrow"
+            />
+
+          </button>
+        ))}
+
+      </div>
+
+    </section>
+  );
+}
+
+
+function HomeFooter() {
+  const navigate = useNavigate();
+
+  return (
+    <footer className="home-footer">
+
+      <div className="footer-main">
+
+        <div className="footer-brand">
+
+          <span className="footer-logo">
+            K
+          </span>
+
+          <div>
+            <strong>KadoTV</strong>
+            <span>
+              Entertainment, reimagined.
+            </span>
+          </div>
+
+        </div>
+
+        <div className="footer-links">
+
+          <button onClick={() => navigate("/")}>
+            Home
+          </button>
+
+          <button onClick={() => navigate("/channels")}>
+            Live TV
+          </button>
+
+          <button onClick={() => navigate("/movies")}>
+            Movies
+          </button>
+
+          <button onClick={() => navigate("/series")}>
+            Series
+          </button>
+
+          <button onClick={() => navigate("/search")}>
+            Search
+          </button>
+
+        </div>
+
+      </div>
+
+      <div className="footer-bottom">
+
+        <span>
+          © {new Date().getFullYear()} KadoTV
+        </span>
+
+        <span>
+          Stream • Discover • Enjoy
+        </span>
+
+      </div>
+
+    </footer>
+  );
+}
+
 
 function Hero({ item, type }) {
   const navigate = useNavigate();
