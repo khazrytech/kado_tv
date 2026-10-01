@@ -10,8 +10,7 @@ import {
   toggleFavorite, isFavorite, saveWatch,
   adminList, adminUpsert, adminDelete, adminUpdateUser
 } from "./lib/api";
-// TEMPORARILY DISABLED AUTH
-// import Auth, { ResetPassword } from "./pages/Auth";
+import Auth, { ResetPassword } from "./pages/Auth";
 import Player from "./components/Player";
 
 function App() {
@@ -85,30 +84,32 @@ function App() {
 
   if (loading) return <Splash />;
 
-  // AUTH TEMPORARILY DISABLED
-  // Auth and ResetPassword are kept above for later re-enable.
-  // <Route path="/auth" element={<Auth />} />
-  // <Route path="/reset-password" element={<ResetPassword />} />
-
-  // Temporary guest session so the existing UI can work
-  // without forcing login.
-  const guestSession = session || {
-    user: {
-      id: null,
-      email: ""
-    }
-  };
-
   return (
     <Routes>
       <Route
+        path="/auth"
+        element={
+          session
+            ? <Navigate to="/" replace />
+            : <Auth />
+        }
+      />
+
+      <Route
+        path="/reset-password"
+        element={<ResetPassword />}
+      />
+
+      <Route
         path="*"
         element={
-          <Shell
-            session={guestSession}
-            profile={profile}
-            setProfile={setProfile}
-          />
+          session
+            ? <Shell
+                session={session}
+                profile={profile}
+                setProfile={setProfile}
+              />
+            : <Navigate to="/auth" replace />
         }
       />
     </Routes>
@@ -483,7 +484,7 @@ function ContentCard({ item, type, session }) {
   const [fav, setFav] = useState(false);
 
   useEffect(() => {
-    if (session?.user?.id) {
+    if (session?.user) {
       isFavorite(
         session.user.id,
         type,
@@ -496,8 +497,6 @@ function ContentCard({ item, type, session }) {
 
   async function favIt(e) {
     e.stopPropagation();
-
-    if (!session?.user?.id) return;
 
     try {
       setFav(
@@ -876,15 +875,13 @@ function WatchPage({ session }) {
         }
         live={type === "channel"}
         onProgress={(p, d) =>
-          session?.user?.id
-            ? saveWatch(
-                session.user.id,
-                type,
-                id,
-                p,
-                d
-              ).catch(() => {})
-            : undefined
+          saveWatch(
+            session.user.id,
+            type,
+            id,
+            p,
+            d
+          ).catch(() => {})
         }
       />
 
