@@ -1,2032 +1,412 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import {
-  Bell, Bookmark, Film, Home, LogOut, Menu, Play, Search, Settings,
-  Shield, Tv, User, X, Pencil, Trash2, Ban, CheckCircle2, ChevronRight,
-  Radio, Clapperboard, Layers3, Trophy, Baby, Sparkles
-} from "lucide-react";
-import { supabase } from "./lib/supabase";
-import {
-  getProfile, getChannels, getMovies, getSeries, getFeaturedChannels, getCategories,
-  toggleFavorite, isFavorite, saveWatch,
-  adminList, adminUpsert, adminDelete, adminUpdateUser
-} from "./lib/api";
-// TEMPORARILY DISABLED AUTH
-// import Auth, { ResetPassword } from "./pages/Auth";
-import Player from "./components/Player";
+import React, { useState, useEffect } from 'react';
+import { 
+  Home, 
+  Compass, 
+  Tv, 
+  User, 
+  Play, 
+  Plus, 
+  Check, 
+  Search, 
+  Cast, 
+  Bell, 
+  ChevronRight, 
+  X, 
+  Radio, 
+  Sparkles,
+  Shield,
+  Trash2,
+  Edit,
+  Heart
+} from 'lucide-react';
+import { createClient } from '@supabase/supabase-js';
 
-function App() {
-  const [session, setSession] = useState(null);
-  const [profile, setProfile] = useState(null);
+// Supabase Configuration
+const SUPABASE_URL = 'https://fqixivwmtggpuftrnxxq.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZxaXhpd3dtdGdncHVmdHJueHhxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDEyMDI3MjMsImV4cCI6MjA1Njc3ODcyM30.4sI6Uo7Q4oQWb4a9G02pW4z_c3-Yg-3hX1b9_p4mX4';
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+export default function App() {
+  const [activeTab, setActiveTab] = useState('home'); // home, discover, live, myspace
+  const [channels, setChannels] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedChannel, setSelectedChannel] = useState(null);
+  const [myList, setMyList] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
 
+  // Continue Watching Mock Data
+  const continueWatching = [
+    {
+      id: 'cw-1',
+      title: 'THE NEURAL NET',
+      episode: 'S2:E4',
+      progress: 45,
+      image: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=600&auto=format&fit=crop'
+    },
+    {
+      id: 'cw-2',
+      title: 'QUANTUM DRIFT',
+      episode: 'S1:E8',
+      progress: 70,
+      image: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=600&auto=format&fit=crop'
+    }
+  ];
+
+  // Fetch Channels kutoka Supabase
   useEffect(() => {
-    let mounted = true;
-
-    const loadProfile = async (user) => {
-      if (!user) {
-        if (mounted) setProfile(null);
-        return;
-      }
-
-      try {
-        const p = await getProfile(user.id);
-        if (mounted) setProfile(p);
-      } catch {
-        if (mounted) setProfile(null);
-      }
-    };
-
-    const {
-      data: { subscription }
-    } = supabase.auth.onAuthStateChange((event, nextSession) => {
-      if (!mounted) return;
-
-      setSession(nextSession);
-
-      if (nextSession?.user) {
-        setTimeout(() => {
-          loadProfile(nextSession.user);
-        }, 0);
-      } else {
-        setProfile(null);
-      }
-
-      if (
-        event === "INITIAL_SESSION" ||
-        event === "SIGNED_IN" ||
-        event === "TOKEN_REFRESHED" ||
-        event === "SIGNED_OUT"
-      ) {
-        setLoading(false);
-      }
-    });
-
-    supabase.auth.getSession().then(({ data, error }) => {
-      if (!mounted) return;
-
-      if (!error && data?.session) {
-        setSession(data.session);
-        loadProfile(data.session.user);
-      }
-
-      setLoading(false);
-    });
-
-    const safetyTimer = setTimeout(() => {
-      if (mounted) setLoading(false);
-    }, 5000);
-
-    return () => {
-      mounted = false;
-      clearTimeout(safetyTimer);
-      subscription.unsubscribe();
-    };
+    fetchChannels();
   }, []);
 
-  if (loading) return <Splash />;
-
-  // AUTH TEMPORARILY DISABLED
-  // Auth and ResetPassword are kept above for later re-enable.
-  // <Route path="/auth" element={<Auth />} />
-  // <Route path="/reset-password" element={<ResetPassword />} />
-
-  // Temporary guest session so the existing UI can work
-  // without forcing login.
-  const guestSession = session || {
-    user: {
-      id: null,
-      email: ""
-    }
-  };
-
-  return (
-    <Routes>
-      <Route
-        path="*"
-        element={
-          <Shell
-            session={guestSession}
-            profile={profile}
-            setProfile={setProfile}
-          />
-        }
-      />
-    </Routes>
-  );
-}
-
-function Splash() {
-  return (
-    <div className="splash">
-      <div className="brand-mark">K</div>
-      <strong>KadoTV</strong>
-      <span>Loading your entertainment…</span>
-    </div>
-  );
-}
-
-function Shell({ session, profile, setProfile }) {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const [mobileNav, setMobileNav] = useState(false);
-  // TEMPORARY ADMIN ACCESS
-  // Authentication will be restored later.
-  const admin = true;
-
-  const nav = [
-    ["/", "Home", Home],
-    ["/channels", "Channels", Tv],
-    ["/movies", "Movies", Film],
-    ["/series", "Series", Bookmark],
-    ["/search", "Search", Search],
-    ["/profile", "Profile", User],
-    ...(admin ? [["/admin", "Admin", Shield]] : [])
-  ];
-
-  async function logout() {
-    await supabase.auth.signOut();
-    navigate("/auth");
-  }
-
-  return (
-    <div className="app-shell">
-      <aside className={"sidebar " + (mobileNav ? "open" : "")}>
-        <div className="logo">
-          <span className="logo-icon">K</span>
-          <span>KadoTV</span>
-        </div>
-
-        <nav>
-          {nav.map(([path, label, Icon]) => (
-            <button
-              key={path}
-              className={
-                location.pathname === path
-                  ? "nav-item active"
-                  : "nav-item"
-              }
-              onClick={() => {
-                navigate(path);
-                setMobileNav(false);
-              }}
-            >
-              <Icon size={19} />
-              <span>{label}</span>
-            </button>
-          ))}
-        </nav>
-
-        <div className="sidebar-bottom">
-          <button
-            className="nav-item"
-            onClick={() => navigate("/settings")}
-          >
-            <Settings size={19} />
-            <span>Settings</span>
-          </button>
-
-          <button
-            className="nav-item logout"
-            onClick={logout}
-          >
-            <LogOut size={19} />
-            <span>Sign out</span>
-          </button>
-        </div>
-      </aside>
-
-      {mobileNav && (
-        <div
-          className="scrim"
-          onClick={() => setMobileNav(false)}
-        />
-      )}
-
-      <main className="main">
-        <header className="topbar">
-          <button
-            className="icon-btn mobile-menu"
-            onClick={() => setMobileNav(true)}
-          >
-            <Menu />
-          </button>
-
-          <button
-            className="mobile-logo"
-            onClick={() => navigate("/")}
-          >
-            <span>K</span>KadoTV
-          </button>
-
-          <div
-            className="top-search"
-            onClick={() => navigate("/search")}
-          >
-            <Search size={18} />
-            <span>Search channels, movies & series</span>
-          </div>
-
-          <div className="top-actions">
-            <button className="icon-btn">
-              <Bell size={19} />
-            </button>
-
-            <button
-              className="avatar"
-              onClick={() => navigate("/profile")}
-            >
-              {(profile?.display_name ||
-                session.user.email ||
-                "U")
-                .slice(0, 1)
-                .toUpperCase()}
-            </button>
-          </div>
-        </header>
-
-        <div className="page">
-          <Routes>
-            <Route
-              path="/"
-              element={<HomePage session={session} />}
-            />
-
-            <Route
-              path="/channels"
-              element={<ChannelsPage session={session} />}
-            />
-
-            <Route
-              path="/movies"
-              element={<MoviesPage session={session} />}
-            />
-
-            <Route
-              path="/series"
-              element={<SeriesPage session={session} />}
-            />
-
-            <Route
-              path="/search"
-              element={<SearchPage session={session} />}
-            />
-
-            <Route
-              path="/profile"
-              element={
-                <ProfilePage
-                  session={session}
-                  profile={profile}
-                  setProfile={setProfile}
-                />
-              }
-            />
-
-            <Route
-              path="/settings"
-              element={<SettingsPage />}
-            />
-
-            <Route
-              path="/watch/:type/:id"
-              element={<WatchPage session={session} />}
-            />
-
-            {/* TEMPORARY: Admin accessible without login */}
-            <Route
-              path="/admin"
-              element={<AdminPage />}
-            />
-
-            <Route
-              path="*"
-              element={<Navigate to="/" replace />}
-            />
-          </Routes>
-        </div>
-      </main>
-    </div>
-  );
-}
-
-function useData(loader, deps = []) {
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    let ok = true;
-
-    setLoading(true);
-
-    loader()
-      .then(v => ok && setData(v))
-      .catch(e => ok && setError(e.message || "Unable to load"))
-      .finally(() => ok && setLoading(false));
-
-    return () => {
-      ok = false;
-    };
-  }, deps);
-
-  return {
-    data,
-    loading,
-    error,
-    setData
-  };
-}
-
-function HomePage({ session }) {
-  const channels = useData(getChannels);
-  const movies = useData(getMovies);
-  const series = useData(getSeries);
-  const featured = useData(getFeaturedChannels);
-
-  const [slide, setSlide] = useState(0);
-
-  const channelItems = channels.data || [];
-  const movieItems = movies.data || [];
-  const seriesItems = series.data || [];
-  const featuredItems = featured.data || [];
-
-  useEffect(() => {
-    if (featuredItems.length <= 1) return;
-
-    const timer = setInterval(() => {
-      setSlide((current) => (current + 1) % featuredItems.length);
-    }, 6500);
-
-    return () => clearInterval(timer);
-  }, [featuredItems.length]);
-
-  useEffect(() => {
-    if (slide >= featuredItems.length && featuredItems.length) {
-      setSlide(0);
-    }
-  }, [slide, featuredItems.length]);
-
-  return (
-    <div className="kado-home">
-
-      {/* HERO */}
-      <section className="kado-hero">
-        <HomeHeroSlider
-          items={featuredItems}
-          index={slide}
-          setIndex={setSlide}
-        />
-      </section>
-
-      {/* CONTINUE WATCHING */}
-      {session?.user?.id && (
-        <section className="kado-section">
-          <div className="kado-section-head">
-            <div>
-              <span>YOUR LIBRARY</span>
-              <h2>Continue Watching</h2>
-            </div>
-
-            <button onClick={() => window.location.href = "/profile"}>
-              See all <ChevronRight size={16} />
-            </button>
-          </div>
-
-          <div className="kado-horizontal">
-            {movieItems.slice(0, 5).map((item) => (
-              <a
-                key={item.id}
-                href={`/watch/movie/${item.id}`}
-                className="kado-continue-card"
-              >
-                <div className="kado-continue-image">
-                  <img
-                    src={item.backdrop_url || item.poster_url || "/placeholder.png"}
-                    alt={item.title}
-                    loading="lazy"
-                  />
-                  <div className="kado-progress">
-                    <span />
-                  </div>
-                  <div className="kado-continue-play">
-                    <Play size={18} fill="currentColor" />
-                  </div>
-                </div>
-
-                <strong>{item.title}</strong>
-                <span>{item.release_year || "Movie"}</span>
-              </a>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* TRENDING */}
-      {movieItems.length > 0 && (
-        <section className="kado-section">
-          <div className="kado-section-head">
-            <div>
-              <span>TRENDING NOW</span>
-              <h2>Popular Movies</h2>
-            </div>
-
-            <button onClick={() => window.location.href = "/movies"}>
-              See all <ChevronRight size={16} />
-            </button>
-          </div>
-
-          <div className="kado-poster-rail">
-            {movieItems.slice(0, 12).map((item, index) => (
-              <a
-                key={item.id}
-                href={`/watch/movie/${item.id}`}
-                className="kado-poster"
-              >
-                <div className="kado-rank">
-                  {String(index + 1).padStart(2, "0")}
-                </div>
-
-                <div className="kado-poster-image">
-                  <img
-                    src={item.poster_url || item.backdrop_url || "/placeholder.png"}
-                    alt={item.title}
-                    loading="lazy"
-                  />
-
-                  <div className="kado-poster-overlay">
-                    <div>
-                      <Play size={18} fill="currentColor" />
-                    </div>
-                  </div>
-
-                  {item.quality && (
-                    <small>{item.quality}</small>
-                  )}
-                </div>
-
-                <strong>{item.title}</strong>
-
-                <span>
-                  {item.release_year || "Movie"}
-                  {item.category ? ` • ${item.category}` : ""}
-                </span>
-              </a>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* LIVE CHANNELS */}
-      {channelItems.length > 0 && (
-        <section className="kado-section">
-          <div className="kado-section-head">
-            <div>
-              <span className="kado-live-label">
-                <i />
-                LIVE NOW
-              </span>
-              <h2>Live Channels</h2>
-            </div>
-
-            <button onClick={() => window.location.href = "/channels"}>
-              See all <ChevronRight size={16} />
-            </button>
-          </div>
-
-          <div className="kado-channel-rail">
-            {channelItems.slice(0, 12).map((item) => (
-              <a
-                key={item.id}
-                href={`/watch/channel/${item.id}`}
-                className="kado-channel-card"
-              >
-                <div className="kado-channel-image">
-                  <img
-                    src={
-                      item.logo_url ||
-                      item.backdrop_url ||
-                      "/placeholder.png"
-                    }
-                    alt={item.name}
-                    loading="lazy"
-                  />
-
-                  <div className="kado-live-badge">
-                    <i />
-                    LIVE
-                  </div>
-
-                  <div className="kado-channel-play">
-                    <Play size={18} fill="currentColor" />
-                  </div>
-                </div>
-
-                <strong>{item.name}</strong>
-                <span>{item.category || "Live Channel"}</span>
-              </a>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* SERIES */}
-      {seriesItems.length > 0 && (
-        <section className="kado-section">
-          <div className="kado-section-head">
-            <div>
-              <span>POPULAR SERIES</span>
-              <h2>Watch Your Favorites</h2>
-            </div>
-
-            <button onClick={() => window.location.href = "/series"}>
-              See all <ChevronRight size={16} />
-            </button>
-          </div>
-
-          <div className="kado-poster-rail">
-            {seriesItems.slice(0, 12).map((item, index) => (
-              <a
-                key={item.id}
-                href={`/watch/series/${item.id}`}
-                className="kado-poster"
-              >
-                <div className="kado-rank">
-                  {String(index + 1).padStart(2, "0")}
-                </div>
-
-                <div className="kado-poster-image">
-                  <img
-                    src={
-                      item.poster_url ||
-                      item.backdrop_url ||
-                      "/placeholder.png"
-                    }
-                    alt={item.title}
-                    loading="lazy"
-                  />
-
-                  <div className="kado-poster-overlay">
-                    <div>
-                      <Play size={18} fill="currentColor" />
-                    </div>
-                  </div>
-                </div>
-
-                <strong>{item.title}</strong>
-                <span>{item.release_year || "Series"}</span>
-              </a>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* BOTTOM DISCOVERY */}
-      <section className="kado-discover">
-        <div className="kado-discover-glow" />
-
-        <span>EXPLORE KADOTV</span>
-        <h2>Find something you'll love.</h2>
-        <p>
-          Discover live channels, movies and series in one cinematic
-          streaming experience.
-        </p>
-
-        <button onClick={() => window.location.href = "/search"}>
-          Start Exploring
-          <ChevronRight size={17} />
-        </button>
-      </section>
-
-    </div>
-  );
-}
-
-
-
-function HomeCategoryRail() {
-  const navigate = useNavigate();
-
-  const categories = [
-    {
-      label: "Live TV",
-      icon: Radio,
-      path: "/channels?category=live-tv"
-    },
-    {
-      label: "Sports",
-      icon: Trophy,
-      path: "/channels?category=sports"
-    },
-    {
-      label: "Local TV",
-      icon: Tv,
-      path: "/channels?category=local-tv"
-    },
-    {
-      label: "News",
-      icon: Layers3,
-      path: "/channels?category=news"
-    },
-    {
-      label: "Entertainment",
-      icon: Sparkles,
-      path: "/channels?category=entertainment"
-    },
-    {
-      label: "Movies",
-      icon: Film,
-      path: "/movies"
-    },
-    {
-      label: "Series",
-      icon: Clapperboard,
-      path: "/series"
-    },
-    {
-      label: "Kids",
-      icon: Baby,
-      path: "/channels?category=kids"
-    }
-  ];
-
-  return (
-    <section className="kado-category-section">
-      <div className="kado-category-heading">
-        <div>
-          <span>EXPLORE</span>
-          <h2>What do you want to watch?</h2>
-        </div>
-      </div>
-
-      <div className="kado-category-rail">
-        {categories.map(({ label, icon: Icon, path }) => (
-          <button
-            key={label}
-            className="kado-category-chip"
-            onClick={() => navigate(path)}
-          >
-            <span className="kado-category-icon">
-              <Icon size={17} />
-            </span>
-
-            <span>{label}</span>
-
-            <ChevronRight size={14} />
-          </button>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function HomeHeroSlider({ items, index, setIndex }) {
-  const navigate = useNavigate();
-
-  if (!items.length) {
-    return (
-      <div className="kado-hero-empty">
-        <div className="kado-hero-glow" />
-
-        <div className="kado-hero-copy">
-          <span>
-            <i />
-            KADOTV
-          </span>
-
-          <h1>
-            Entertainment
-            <strong> without limits.</strong>
-          </h1>
-
-          <p>
-            Live channels, movies and series in one modern streaming
-            experience.
-          </p>
-
-          <button onClick={() => navigate("/channels")}>
-            <Play size={17} fill="currentColor" />
-            Explore KadoTV
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const item = items[index] || items[0];
-
-  const title =
-    item.name ||
-    item.title ||
-    item.channel_name ||
-    "Featured on KadoTV";
-
-  const description =
-    item.description ||
-    "Stream your favorite entertainment on KadoTV.";
-
-  const image =
-    item.backdrop_url ||
-    item.backdrop ||
-    item.poster_url ||
-    item.poster ||
-    item.logo_url ||
-    item.logo ||
-    "";
-
-  return (
-    <div className="kado-hero-slide">
-
-      <div
-        className="kado-hero-image"
-        style={{
-          backgroundImage: `
-            linear-gradient(
-              90deg,
-              rgba(4,5,10,.98) 0%,
-              rgba(4,5,10,.82) 32%,
-              rgba(4,5,10,.35) 68%,
-              rgba(4,5,10,.78) 100%
-            ),
-            linear-gradient(
-              0deg,
-              rgba(4,5,10,1) 0%,
-              transparent 55%
-            ),
-            url("${image}")
-          `
-        }}
-      />
-
-      <div className="kado-hero-copy" key={item.id || index}>
-
-        <span className="kado-featured">
-          <i />
-          FEATURED
-        </span>
-
-        <h1>{title}</h1>
-
-        <p>{description}</p>
-
-        <div className="kado-hero-buttons">
-          <button
-            className="kado-watch"
-            onClick={() => {
-              if (item.id) {
-                navigate(`/watch/channel/${item.id}`);
-              } else {
-                navigate("/channels");
-              }
-            }}
-          >
-            <Play size={17} fill="currentColor" />
-            Watch Now
-          </button>
-
-          <button
-            className="kado-browse"
-            onClick={() => navigate("/channels")}
-          >
-            Browse
-            <ChevronRight size={16} />
-          </button>
-        </div>
-      </div>
-
-      {items.length > 1 && (
-        <div className="kado-hero-navigation">
-
-          <div className="kado-hero-dots">
-            {items.map((entry, i) => (
-              <button
-                key={entry.id || i}
-                className={i === index ? "active" : ""}
-                onClick={() => setIndex(i)}
-                aria-label={`Slide ${i + 1}`}
-              />
-            ))}
-          </div>
-
-          <div className="kado-hero-counter">
-            <strong>
-              {String(index + 1).padStart(2, "0")}
-            </strong>
-            <span>/</span>
-            <span>
-              {String(items.length).padStart(2, "0")}
-            </span>
-          </div>
-
-        </div>
-      )}
-
-    </div>
-  );
-}
-
-
-function MobileBottomNav() {
-  const location = useLocation();
-
-  const items = [
-    { to: "/", label: "Home", icon: Home },
-    { to: "/discover", label: "Discover", icon: Search },
-    { to: "/channels", label: "Live", icon: Radio },
-    { to: "/library", label: "Library", icon: Bookmark },
-    { to: "/profile", label: "Profile", icon: User }
-  ];
-
-  return (
-    <nav className="mobile-bottom-nav">
-      {items.map(({ to, label, icon: Icon }) => {
-        const active =
-          to === "/"
-            ? location.pathname === "/"
-            : location.pathname.startsWith(to);
-
-        return (
-          <Link
-            key={to}
-            to={to}
-            className={active ? "mobile-nav-item active" : "mobile-nav-item"}
-          >
-            <Icon size={20} strokeWidth={active ? 2.5 : 2} />
-            <span>{label}</span>
-          </Link>
-        );
-      })}
-    </nav>
-  );
-}
-
-function QuickCategories() {
-  const navigate = useNavigate();
-
-  const categories = [
-    ["/channels", "Live TV", Radio],
-    ["/movies", "Movies", Film],
-    ["/series", "Series", Clapperboard],
-    ["/channels?category=Sports", "Sports", Trophy],
-    ["/movies?category=Kids", "Kids", Baby],
-    ["/search", "Explore", Layers3]
-  ];
-
-  return (
-    <section className="quick-categories">
-
-      <div className="quick-head">
-
-        <div>
-          <span className="mini-label">
-            DISCOVER
-          </span>
-
-          <h2>
-            What do you want to watch?
-          </h2>
-        </div>
-
-      </div>
-
-      <div className="category-rail">
-
-        {categories.map(([path, label, Icon]) => (
-          <button
-            key={label}
-            className="category-card"
-            onClick={() => navigate(path)}
-          >
-
-            <span className="category-icon">
-              <Icon size={19} />
-            </span>
-
-            <span className="category-name">
-              {label}
-            </span>
-
-            <ChevronRight
-              size={15}
-              className="category-arrow"
-            />
-
-          </button>
-        ))}
-
-      </div>
-
-    </section>
-  );
-}
-
-
-function HomeFooter() {
-  const navigate = useNavigate();
-
-  return (
-    <footer className="home-footer">
-
-      <div className="footer-main">
-
-        <div className="footer-brand">
-
-          <span className="footer-logo">
-            K
-          </span>
-
-          <div>
-            <strong>KadoTV</strong>
-            <span>
-              Entertainment, reimagined.
-            </span>
-          </div>
-
-        </div>
-
-        <div className="footer-links">
-
-          <button onClick={() => navigate("/")}>
-            Home
-          </button>
-
-          <button onClick={() => navigate("/channels")}>
-            Live TV
-          </button>
-
-          <button onClick={() => navigate("/movies")}>
-            Movies
-          </button>
-
-          <button onClick={() => navigate("/series")}>
-            Series
-          </button>
-
-          <button onClick={() => navigate("/search")}>
-            Search
-          </button>
-
-        </div>
-
-      </div>
-
-      <div className="footer-bottom">
-
-        <span>
-          © {new Date().getFullYear()} KadoTV
-        </span>
-
-        <span>
-          Stream • Discover • Enjoy
-        </span>
-
-      </div>
-
-    </footer>
-  );
-}
-
-
-function Hero({ item, type }) {
-  const navigate = useNavigate();
-
-  return (
-    <div
-      className="hero"
-      style={{
-        backgroundImage:
-          `linear-gradient(90deg, rgba(5,6,10,.96), rgba(5,6,10,.55), rgba(5,6,10,.1)), url("${item.backdrop_url || item.logo_url || ""}")`
-      }}
-    >
-      <div className="hero-content">
-        <span className="eyebrow">FEATURED</span>
-        <h1>{item.name || item.title}</h1>
-        <p>
-          {item.description || "Watch now on KadoTV."}
-        </p>
-
-        <button
-          className="primary-btn"
-          onClick={() =>
-            navigate(`/watch/${type}/${item.id}`)
-          }
-        >
-          <Play size={17} fill="currentColor" />
-          Watch now
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function Section({ title, action, children }) {
-  const navigate = useNavigate();
-
-  return (
-    <section className="section">
-      <div className="section-head">
-        <h2>{title}</h2>
-
-        <button onClick={() => navigate(action)}>
-          See all
-          <ChevronRight size={16} />
-        </button>
-      </div>
-
-      {children}
-    </section>
-  );
-}
-
-function CardRow({ items, type, session }) {
-  if (!items.length) {
-    return (
-      <div className="empty-row">
-        No content has been added yet.
-      </div>
-    );
-  }
-
-  return (
-    <div className="card-row">
-      {items.map(item => (
-        <ContentCard
-          key={item.id}
-          item={item}
-          type={type}
-          session={session}
-        />
-      ))}
-    </div>
-  );
-}
-
-function ContentCard({ item, type, session }) {
-  const navigate = useNavigate();
-  const [fav, setFav] = useState(false);
-
-  useEffect(() => {
-    if (session?.user?.id) {
-      isFavorite(
-        session.user.id,
-        type,
-        item.id
-      )
-        .then(setFav)
-        .catch(() => {});
-    }
-  }, [session?.user?.id, type, item.id]);
-
-  async function favIt(e) {
-    e.stopPropagation();
-
-    if (!session?.user?.id) return;
-
+  const fetchChannels = async () => {
     try {
-      setFav(
-        await toggleFavorite(
-          session.user.id,
-          type,
-          item.id
-        )
-      );
-    } catch {}
-  }
-
-  const title = item.name || item.title;
-
-  return (
-    <article
-      className="content-card"
-      onClick={() =>
-        navigate(`/watch/${type}/${item.id}`)
-      }
-    >
-      <div className="poster">
-        {item.poster_url || item.logo_url ? (
-          <img
-            src={item.poster_url || item.logo_url}
-            alt=""
-          />
-        ) : (
-          <div className="poster-fallback">
-            {title?.slice(0, 1)}
-          </div>
-        )}
-
-        <button
-          className={
-            "fav-mini " + (fav ? "liked" : "")
-          }
-          onClick={favIt}
-        >
-          {fav ? "♥" : "♡"}
-        </button>
-
-        <div className="poster-overlay">
-          <Play size={20} fill="currentColor" />
-        </div>
-      </div>
-
-      <div className="card-title">{title}</div>
-
-      <div className="card-meta">
-        {item.category ||
-          item.release_year ||
-          (type === "channel" ? "LIVE" : "")}
-      </div>
-    </article>
-  );
-}
-
-function ChannelsPage({ session }) {
-  const { data, loading } = useData(getChannels);
-  const categories = useData(getCategories);
-  const [params] = useSearchParams();
-
-  const category = params.get("category");
-
-  const filtered = useMemo(() => {
-    if (!category || category === "live-tv") {
-      return data;
-    }
-
-    const found = categories.data.find(
-      item =>
-        item.slug === category ||
-        item.name?.toLowerCase() === category.toLowerCase()
-    );
-
-    if (!found) return [];
-
-    return data.filter(
-      channel =>
-        channel.category_id === found.id ||
-        channel.category?.toLowerCase() === found.name.toLowerCase()
-    );
-  }, [data, categories.data, category]);
-
-  const title =
-    category && category !== "live-tv"
-      ? (
-          categories.data.find(
-            item =>
-              item.slug === category ||
-              item.name?.toLowerCase() === category.toLowerCase()
-          )?.name || "Live Channels"
-        )
-      : "Live Channels";
-
-  return (
-    <LibraryPage
-      title={title}
-      subtitle="Your live streaming channels"
-      items={filtered}
-      loading={loading || categories.loading}
-      type="channel"
-      session={session}
-    />
-  );
-}
-
-function MoviesPage({ session }) {
-  const { data, loading } = useData(getMovies);
-
-  return (
-    <LibraryPage
-      title="Movies"
-      subtitle="Movies available in your KadoTV library"
-      items={data}
-      loading={loading}
-      type="movie"
-      session={session}
-    />
-  );
-}
-
-function SeriesPage({ session }) {
-  const { data, loading } = useData(getSeries);
-
-  return (
-    <LibraryPage
-      title="Series"
-      subtitle="Series and episodic content"
-      items={data}
-      loading={loading}
-      type="series"
-      session={session}
-    />
-  );
-}
-
-function LibraryPage({
-  title,
-  subtitle,
-  items,
-  loading,
-  type,
-  session
-}) {
-  return (
-    <div>
-      <div className="page-heading">
-        <h1>{title}</h1>
-        <p>{subtitle}</p>
-      </div>
-
-      {loading ? (
-        <div className="loading-line">Loading…</div>
-      ) : items.length ? (
-        <div className="grid">
-          {items.map(i => (
-            <ContentCard
-              key={i.id}
-              item={i}
-              type={type}
-              session={session}
-            />
-          ))}
-        </div>
-      ) : (
-        <EmptyState />
-      )}
-    </div>
-  );
-}
-
-function EmptyState() {
-  return (
-    <div className="empty-state">
-      <Tv size={32} />
-      <h3>Nothing here yet</h3>
-      <p>
-        Content added from the KadoTV admin panel
-        will appear here.
-      </p>
-    </div>
-  );
-}
-
-function SearchPage({ session }) {
-  const channels = useData(getChannels);
-  const movies = useData(getMovies);
-  const series = useData(getSeries);
-
-  const [q, setQ] = useState("");
-
-  const all = useMemo(
-    () => [
-      ...channels.data.map(x => ({
-        ...x,
-        _type: "channel"
-      })),
-      ...movies.data.map(x => ({
-        ...x,
-        _type: "movie"
-      })),
-      ...series.data.map(x => ({
-        ...x,
-        _type: "series"
-      }))
-    ],
-    [
-      channels.data,
-      movies.data,
-      series.data
-    ]
-  );
-
-  const results = all.filter(x =>
-    (x.name || x.title || "")
-      .toLowerCase()
-      .includes(q.toLowerCase())
-  );
-
-  return (
-    <div>
-      <div className="page-heading">
-        <h1>Search</h1>
-        <p>Find something to watch.</p>
-      </div>
-
-      <div className="search-box">
-        <Search />
-        <input
-          autoFocus
-          value={q}
-          onChange={e => setQ(e.target.value)}
-          placeholder="Search…"
-        />
-      </div>
-
-      {q ? (
-        <div className="grid">
-          {results.map(i => (
-            <ContentCard
-              key={i._type + i.id}
-              item={i}
-              type={i._type}
-              session={session}
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="empty-state">
-          <Search size={32} />
-          <h3>Start searching</h3>
-          <p>
-            Search across channels, movies and series.
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ProfilePage({
-  session,
-  profile,
-  setProfile
-}) {
-  const [name, setName] = useState(
-    profile?.display_name || ""
-  );
-
-  async function save() {
-    const {
-      data,
-      error
-    } = await supabase
-      .from("profiles")
-      .update({
-        display_name: name
-      })
-      .eq("id", session.user.id)
-      .select()
-      .single();
-
-    if (!error) setProfile(data);
-  }
-
-  return (
-    <div className="settings-page">
-      <div className="page-heading">
-        <h1>Your Profile</h1>
-        <p>Manage your KadoTV account.</p>
-      </div>
-
-      <div className="panel profile-panel">
-        <div className="big-avatar">
-          {(name || session.user.email)
-            .slice(0, 1)
-            .toUpperCase()}
-        </div>
-
-        <div className="profile-info">
-          <label>Display name</label>
-
-          <input
-            value={name}
-            onChange={e => setName(e.target.value)}
-            placeholder="Your name"
-          />
-
-          <label>Email</label>
-
-          <input
-            value={session.user.email}
-            disabled
-          />
-
-          <button
-            className="primary-btn"
-            onClick={save}
-          >
-            Save profile
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function SettingsPage() {
-  return (
-    <div className="settings-page">
-      <div className="page-heading">
-        <h1>Settings</h1>
-        <p>KadoTV preferences.</p>
-      </div>
-
-      <div className="panel">
-        <div className="setting-row">
-          <div>
-            <b>Account security</b>
-            <span>
-              Authentication is handled by Supabase.
-            </span>
-          </div>
-          <Shield size={20} />
-        </div>
-
-        <div className="setting-row">
-          <div>
-            <b>Streaming</b>
-            <span>
-              Use the highest quality available from
-              each source.
-            </span>
-          </div>
-          <Tv size={20} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function WatchPage({ session }) {
-  const { type, id } = useParamsSafe();
-
-  const [item, setItem] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const table =
-          type === "channel"
-            ? "channels"
-            : type === "movie"
-            ? "movies"
-            : "series";
-
-        const { data } = await supabase
-          .from(table)
-          .select("*")
-          .eq("id", id)
-          .single();
-
-        setItem(data);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [type, id]);
-
-  if (loading) {
-    return (
-      <div className="loading-line">
-        Loading player…
-      </div>
-    );
-  }
-
-  if (!item) return <EmptyState />;
-
-  return (
-    <div className="watch-page">
-      <Player
-        src={item.stream_url}
-        poster={
-          item.backdrop_url ||
-          item.poster_url ||
-          item.logo_url
-        }
-        live={type === "channel"}
-        onProgress={(p, d) =>
-          session?.user?.id
-            ? saveWatch(
-                session.user.id,
-                type,
-                id,
-                p,
-                d
-              ).catch(() => {})
-            : undefined
-        }
-      />
-
-      <div className="watch-info">
-        <span className="eyebrow">
-          {type === "channel"
-            ? "LIVE"
-            : type.toUpperCase()}
-        </span>
-
-        <h1>{item.name || item.title}</h1>
-
-        <p>
-          {item.description ||
-            "No description has been added."}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function useParamsSafe() {
-  const location = useLocation();
-  const parts = location.pathname
-    .split("/")
-    .filter(Boolean);
-
-  return {
-    type: parts[1],
-    id: parts[2]
-  };
-}
-
-function AdminPage() {
-  const [tab, setTab] = useState("channels");
-
-  const tabs = {
-    channels: "channels",
-    movies: "movies",
-    series: "series",
-    users: "profiles",
-    categories: "categories"
-  };
-
-  return (
-    <div>
-      <div className="page-heading">
-        <h1>Admin</h1>
-        <p>
-          Manage the real KadoTV library and users.
-        </p>
-      </div>
-
-      <div className="admin-tabs">
-        {Object.keys(tabs).map(x => (
-          <button
-            className={tab === x ? "active" : ""}
-            onClick={() => setTab(x)}
-            key={x}
-          >
-            {x}
-          </button>
-        ))}
-      </div>
-
-      <AdminManager
-        table={tabs[tab]}
-        kind={tab}
-      />
-    </div>
-  );
-}
-
-function AdminManager({ table, kind }) {
-  const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState(null);
-
-  async function load() {
-    setLoading(true);
-
-    try {
-      setRows(await adminList(table));
-    } catch (e) {
-      alert(e.message);
+      setLoading(true);
+      const { data, error } = await supabase.from('channels').select('*');
+      if (error) throw error;
+      setChannels(data || []);
+    } catch (err) {
+      console.error('Error fetching channels:', err);
     } finally {
       setLoading(false);
     }
-  }
+  };
 
-  useEffect(() => {
-    load();
-  }, [table]);
+  // Channel inayoonyeshwa kwenye Hero Banner
+  const featuredChannel = channels.find(c => c.is_featured) || channels[0] || {
+    name: 'QUANTUM HORIZON 2088',
+    category: 'Sci-Fi • Cyberpunk',
+    description: 'The Future is Now. Surrender to the digital realm of hyper-tech dominance.',
+    logo_url: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=800&auto=format&fit=crop'
+  };
 
-  async function remove(id) {
-    if (!confirm("Delete this item?")) return;
-
-    try {
-      await adminDelete(table, id);
-      load();
-    } catch (e) {
-      alert(e.message);
+  const toggleMyList = (channelId) => {
+    if (myList.includes(channelId)) {
+      setMyList(myList.filter(id => id !== channelId));
+    } else {
+      setMyList([...myList, channelId]);
     }
-  }
+  };
 
-  async function save(row) {
-    try {
-      await adminUpsert(table, row);
-      setEditing(null);
-      load();
-    } catch (e) {
-      alert(e.message);
-    }
-  }
-
-  if (kind === "users") {
-    return (
-      <UsersManager
-        rows={rows}
-        reload={load}
-      />
-    );
-  }
-
-  return (
-    <div className="admin-panel">
-      <div className="admin-toolbar">
-        <b>{rows.length} records</b>
-
-        <button
-          className="primary-btn"
-          onClick={() => setEditing({})}
-        >
-          Add
-        </button>
-      </div>
-
-      {loading ? (
-        <div className="loading-line">
-          Loading…
-        </div>
-      ) : (
-        <div className="admin-list">
-          {rows.map(r => (
-            <div
-              className="admin-row"
-              key={r.id}
-            >
-              <div className="admin-thumb">
-                {r.logo_url || r.poster_url ? (
-                  <img
-                    src={
-                      r.logo_url ||
-                      r.poster_url
-                    }
-                    alt=""
-                  />
-                ) : (
-                  <span>
-                    {(r.name ||
-                      r.title ||
-                      "C").slice(0, 1)}
-                  </span>
-                )}
-              </div>
-
-              <div className="admin-main">
-                <b>{r.name || r.title}</b>
-                <small>
-                  {r.category ||
-                    r.status ||
-                    ""}
-                </small>
-              </div>
-
-              <button
-                className="icon-btn"
-                onClick={() => setEditing(r)}
-              >
-                <Pencil size={16} />
-              </button>
-
-              <button
-                className="icon-btn danger"
-                onClick={() =>
-                  remove(r.id)
-                }
-              >
-                <Trash2 size={16} />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {editing !== null && (
-        <EditModal
-          table={table}
-          kind={kind}
-          row={editing}
-          close={() => setEditing(null)}
-          save={save}
-        />
-      )}
-    </div>
+  const filteredChannels = channels.filter(c => 
+    c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (c.category && c.category.toLowerCase().includes(searchQuery.toLowerCase()))
   );
-}
-
-function UsersManager({ rows, reload }) {
-  async function change(id, status) {
-    try {
-      await adminUpdateUser(id, status);
-      reload();
-    } catch (e) {
-      alert(e.message);
-    }
-  }
 
   return (
-    <div className="admin-panel">
-      <div className="admin-toolbar">
-        <b>{rows.length} users</b>
-      </div>
-
-      <div className="admin-list">
-        {rows.map(r => (
-          <div
-            className="admin-row"
-            key={r.id}
-          >
-            <div className="admin-thumb">
-              <span>
-                {(r.display_name ||
-                  r.email ||
-                  "U").slice(0, 1)}
-              </span>
-            </div>
-
-            <div className="admin-main">
-              <b>
-                {r.display_name ||
-                  "Unnamed user"}
-              </b>
-
-              <small>
-                {r.email} · {r.status}
-              </small>
-            </div>
-
-            {r.status === "blocked" ? (
-              <button
-                className="small-btn"
-                onClick={() =>
-                  change(r.id, "active")
-                }
-              >
-                <CheckCircle2 size={15} />
-                Unblock
-              </button>
-            ) : (
-              <button
-                className="small-btn danger"
-                onClick={() =>
-                  change(r.id, "blocked")
-                }
-              >
-                <Ban size={15} />
-                Block
-              </button>
-            )}
+    <div className="min-h-screen bg-[#080b11] text-slate-100 pb-24 font-sans selection:bg-cyan-500 selection:text-black">
+      
+      {/* 1. TOP HEADER */}
+      <header className="sticky top-0 z-40 bg-[#080b11]/90 backdrop-blur-xl border-b border-white/5 px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-500 via-indigo-500 to-purple-600 flex items-center justify-center font-black text-white text-lg shadow-lg shadow-cyan-500/20">
+            K
           </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function EditModal({
-  table,
-  kind,
-  row,
-  close,
-  save
-}) {
-  const categories = useData(getCategories);
-
-  const [form, setForm] = useState(() => {
-    if (row && Object.keys(row).length > 0) {
-      return { ...row };
-    }
-
-    if (kind === "channels") {
-      return {
-        name: "",
-        description: "",
-        logo_url: "",
-        backdrop_url: "",
-        stream_url: "",
-        category: "",
-        category_id: "",
-        is_active: true,
-        is_featured: true,
-        sort_order: 0
-      };
-    }
-
-    if (kind === "movies") {
-      return {
-        title: "",
-        description: "",
-        poster_url: "",
-        backdrop_url: "",
-        stream_url: "",
-        category: "",
-        release_year: new Date().getFullYear(),
-        duration_minutes: 0,
-        is_featured: true,
-        is_trending: true
-      };
-    }
-
-    if (kind === "series") {
-      return {
-        title: "",
-        description: "",
-        poster_url: "",
-        backdrop_url: "",
-        category: "",
-        release_year: new Date().getFullYear(),
-        is_featured: true
-      };
-    }
-
-    return {};
-  });
-
-  const channelCategories = categories.data.filter(item =>
-    ["tv", "sports", "general"].includes(item.type)
-  );
-
-  const fields =
-    kind === "channels"
-      ? [
-          "name",
-          "description",
-          "logo_url",
-          "backdrop_url",
-          "stream_url",
-          "is_active",
-          "is_featured",
-          "sort_order"
-        ]
-      : kind === "movies"
-      ? [
-          "title",
-          "description",
-          "poster_url",
-          "backdrop_url",
-          "stream_url",
-          "category",
-          "release_year",
-          "duration_minutes",
-          "is_featured"
-        ]
-      : kind === "series"
-      ? [
-          "title",
-          "description",
-          "poster_url",
-          "backdrop_url",
-          "category",
-          "release_year",
-          "is_featured"
-        ]
-      : ["name"];
-
-  function set(k, v) {
-    setForm(x => ({
-      ...x,
-      [k]: v
-    }));
-  }
-
-  function selectChannelCategory(id) {
-    const selected = channelCategories.find(
-      item => item.id === id
-    );
-
-    setForm(current => ({
-      ...current,
-      category_id: id,
-      category: selected?.name || ""
-    }));
-  }
-
-  async function handleSave() {
-    const payload = { ...form };
-
-    if (kind === "channels") {
-      if (!payload.category_id) {
-        alert("Please select a channel category.");
-        return;
-      }
-
-      const selected = channelCategories.find(
-        item => item.id === payload.category_id
-      );
-
-      payload.category = selected?.name || payload.category || null;
-    }
-
-    await save(payload);
-  }
-
-  return (
-    <div className="modal-backdrop">
-      <div className="modal">
-        <div className="modal-head">
-          <h2>
-            {row.id ? "Edit" : "Add"}{" "}
-            {kind.slice(0, -1)}
-          </h2>
-
-          <button
-            className="icon-btn"
-            onClick={close}
-          >
-            <X />
-          </button>
+          <span className="font-extrabold text-xl tracking-tight bg-gradient-to-r from-white via-cyan-200 to-cyan-400 bg-clip-text text-transparent">
+            Tech TV
+          </span>
         </div>
 
-        {kind === "channels" && (
-          <label className="field">
-            Category
+        <div className="flex items-center gap-3">
+          <button className="p-2 text-slate-400 hover:text-cyan-400 transition-colors">
+            <Cast size={20} />
+          </button>
+          <button className="p-2 text-slate-400 hover:text-cyan-400 transition-colors relative">
+            <Bell size={20} />
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-cyan-400" />
+          </button>
+          <div className="w-8 h-8 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 p-[2px] cursor-pointer" onClick={() => setActiveTab('myspace')}>
+            <div className="w-full h-full rounded-full bg-[#080b11] flex items-center justify-center text-xs font-bold text-cyan-400">
+              U
+            </div>
+          </div>
+        </div>
+      </header>
 
-            <select
-              value={
-                form.category_id ||
-                channelCategories.find(
-                  item =>
-                    item.name?.toLowerCase() ===
-                    form.category?.toLowerCase()
-                )?.id ||
-                ""
-              }
-              onChange={e =>
-                selectChannelCategory(e.target.value)
-              }
-              disabled={categories.loading}
-            >
-              <option value="">
-                {categories.loading
-                  ? "Loading categories..."
-                  : "Select category"}
-              </option>
+      {/* VIDEO PLAYER MODAL */}
+      {selectedChannel && (
+        <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-2xl flex flex-col items-center justify-center p-4">
+          <button 
+            onClick={() => setSelectedChannel(null)}
+            className="absolute top-4 right-4 p-3 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
+          >
+            <X size={24} />
+          </button>
+          <div className="w-full max-w-4xl aspect-video bg-black rounded-2xl overflow-hidden border border-white/10 shadow-2xl relative">
+            <iframe 
+              src={selectedChannel.stream_url} 
+              title={selectedChannel.name}
+              className="w-full h-full border-0"
+              allow="autoplay; encrypted-media; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
+          <div className="mt-4 text-center max-w-xl">
+            <h2 className="text-2xl font-bold text-white">{selectedChannel.name}</h2>
+            <p className="text-sm text-slate-400 mt-1">{selectedChannel.description || 'Live Tanzanian Stream'}</p>
+          </div>
+        </div>
+      )}
 
-              {channelCategories.map(category => (
-                <option
-                  key={category.id}
-                  value={category.id}
-                >
-                  {category.name}
-                </option>
-              ))}
-            </select>
-          </label>
+      {/* MAIN CONTAINER */}
+      <main className="max-w-md mx-auto px-4 pt-3">
+
+        {/* ==================== TAB 1: HOME ==================== */}
+        {activeTab === 'home' && (
+          <div className="space-y-6">
+
+            {/* HERO BANNER */}
+            <div className="relative w-full h-[360px] rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-slate-900 group">
+              <img 
+                src={featuredChannel.logo_url || "https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=800&auto=format&fit=crop"} 
+                alt="Featured" 
+                className="w-full h-full object-cover object-center filter brightness-90 group-hover:scale-105 transition-transform duration-700"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#080b11] via-[#080b11]/50 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-r from-[#080b11] via-transparent to-transparent" />
+
+              <div className="absolute bottom-0 inset-x-0 p-5 flex flex-col items-start z-10">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/20 border border-cyan-400/40 backdrop-blur-md mb-2">
+                  <Sparkles size={12} className="text-cyan-400" />
+                  <span className="text-[10px] font-bold text-cyan-300 uppercase tracking-widest">
+                    4K ULTRA HD • DOLBY ATMOS
+                  </span>
+                </div>
+
+                <h1 className="text-2xl font-black text-white tracking-tight leading-tight uppercase drop-shadow-md">
+                  {featuredChannel.name}
+                </h1>
+
+                <p className="text-xs text-slate-300 line-clamp-2 mt-1 mb-4 font-normal">
+                  {featuredChannel.description || 'Sci-Fi • Cyberpunk | The Future is Now. Surrender to the digital realm.'}
+                </p>
+
+                <div className="flex items-center gap-3 w-full">
+                  <button 
+                    onClick={() => setSelectedChannel(featuredChannel)}
+                    className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-black font-extrabold text-sm transition-all shadow-lg shadow-cyan-500/25 active:scale-95"
+                  >
+                    <Play size={16} className="fill-black" />
+                    Watch Now
+                  </button>
+
+                  <button 
+                    onClick={() => toggleMyList(featuredChannel.id || 'feat')}
+                    className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-sm backdrop-blur-md border border-white/10 transition-all active:scale-95"
+                  >
+                    {myList.includes(featuredChannel.id || 'feat') ? <Check size={16} className="text-cyan-400" /> : <Plus size={16} />}
+                    My List
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* CONTINUE WATCHING */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-sm font-bold text-white tracking-wide uppercase">Continue Watching</h2>
+                <button className="text-xs font-semibold text-cyan-400 hover:underline flex items-center gap-0.5">
+                  See all <ChevronRight size={14} />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                {continueWatching.map((item) => (
+                  <div key={item.id} className="glass-card rounded-2xl overflow-hidden group cursor-pointer border border-white/5 hover:border-cyan-500/40 transition-all">
+                    <div className="relative aspect-video w-full overflow-hidden bg-slate-900">
+                      <img src={item.image} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                      <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="w-9 h-9 rounded-full bg-cyan-400 text-black flex items-center justify-center shadow-lg">
+                          <Play size={16} className="fill-black ml-0.5" />
+                        </div>
+                      </div>
+                      <div className="absolute bottom-0 inset-x-0 h-1 bg-white/20">
+                        <div className="h-full bg-cyan-400" style={{ width: `${item.progress}%` }} />
+                      </div>
+                    </div>
+                    <div className="p-2.5">
+                      <h3 className="text-xs font-bold text-white truncate">{item.title}</h3>
+                      <p className="text-[10px] text-slate-400 mt-0.5">{item.episode} • {item.progress}%</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* TRENDING CHANNELS */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-sm font-bold text-white tracking-wide uppercase">Trending Tech Originals</h2>
+              </div>
+
+              {loading ? (
+                <div className="text-center py-8 text-xs text-slate-500">Inapakia channels kutoka Supabase...</div>
+              ) : (
+                <div className="space-y-3">
+                  {channels.slice(0, 3).map((channel, index) => (
+                    <div 
+                      key={channel.id} 
+                      onClick={() => setSelectedChannel(channel)}
+                      className="glass-card rounded-2xl p-3 flex items-center gap-4 cursor-pointer hover:border-cyan-500/50 transition-all group relative overflow-hidden"
+                    >
+                      <span className="text-3xl font-black italic text-cyan-400/40 group-hover:text-cyan-400 transition-colors w-6 text-center">
+                        {index + 1}
+                      </span>
+
+                      <div className="w-16 h-12 bg-slate-950/80 rounded-xl overflow-hidden border border-white/10 flex items-center justify-center shrink-0">
+                        <img 
+                          src={channel.logo_url} 
+                          alt={channel.name} 
+                          className="channel-logo-fix"
+                          onError={(e) => { e.target.style.display = 'none'; }}
+                        />
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-sm text-white truncate group-hover:text-cyan-300 transition-colors">
+                          {channel.name}
+                        </h3>
+                        <p className="text-xs text-slate-400 truncate mt-0.5">
+                          {channel.description || channel.category || 'Local Channel'}
+                        </p>
+                      </div>
+
+                      <div className="w-8 h-8 rounded-full bg-cyan-500/10 text-cyan-400 flex items-center justify-center shrink-0 group-hover:bg-cyan-400 group-hover:text-black transition-all">
+                        <Play size={14} className="fill-current" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+          </div>
         )}
 
-        {fields.map(f => {
-          const booleanField =
-            f === "is_active" ||
-            f === "is_featured" ||
-            f === "is_trending";
-
-          return (
-            <label
-              className="field"
-              key={f}
-            >
-              {f}
-
-              <input
-                type={booleanField ? "checkbox" : "text"}
-                checked={
-                  booleanField
-                    ? Boolean(form[f])
-                    : undefined
-                }
-                value={
-                  booleanField
-                    ? undefined
-                    : form[f] ?? ""
-                }
-                onChange={e =>
-                  set(
-                    f,
-                    booleanField
-                      ? e.target.checked
-                      : e.target.value
-                  )
-                }
+        {/* ==================== TAB 2: DISCOVER ==================== */}
+        {activeTab === 'discover' && (
+          <div className="space-y-4">
+            <div className="relative">
+              <Search className="absolute left-3.5 top-3 text-slate-400" size={18} />
+              <input 
+                type="text" 
+                placeholder="Search channels, movies, genres..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-slate-900/90 border border-white/10 rounded-2xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
               />
-            </label>
-          );
-        })}
+            </div>
 
-        <div className="modal-actions">
-          <button
-            className="ghost-btn"
-            onClick={close}
-          >
-            Cancel
-          </button>
+            <div className="grid grid-cols-2 gap-3">
+              {['Sci-Fi', 'Cyberpunk', 'Robotics & AI', 'Space Odyssey', 'Local News', 'Sports'].map((genre, idx) => (
+                <div key={idx} className="h-20 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 border border-white/10 p-3 flex items-end justify-between cursor-pointer hover:border-cyan-400 transition-all">
+                  <span className="font-bold text-sm text-white">{genre}</span>
+                  <Compass className="text-cyan-400/40" size={20} />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
-          <button
-            className="primary-btn"
-            onClick={handleSave}
-          >
-            Save
-          </button>
-        </div>
-      </div>
+        {/* ==================== TAB 3: LIVE & SPORTS ==================== */}
+        {activeTab === 'live' && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1">
+              {['All Live', 'Local TV', 'News', 'Sports'].map((cat, i) => (
+                <button key={i} className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap ${i === 0 ? 'bg-cyan-400 text-black' : 'bg-slate-900 text-slate-300 border border-white/10'}`}>
+                  {cat}
+                </button>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              {filteredChannels.map((channel) => (
+                <div 
+                  key={channel.id} 
+                  onClick={() => setSelectedChannel(channel)}
+                  className="glass-card rounded-2xl overflow-hidden cursor-pointer group border border-white/5 hover:border-cyan-500/50 transition-all"
+                >
+                  <div className="aspect-video w-full bg-slate-950 flex items-center justify-center relative p-2">
+                    <img 
+                      src={channel.logo_url} 
+                      alt={channel.name} 
+                      className="channel-logo-fix"
+                      onError={(e) => { e.target.style.display = 'none'; }}
+                    />
+                    <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[9px] font-black bg-red-600 text-white uppercase tracking-wider">
+                      LIVE
+                    </span>
+                  </div>
+                  <div className="p-2.5">
+                    <h3 className="font-bold text-xs text-white truncate">{channel.name}</h3>
+                    <p className="text-[10px] text-slate-400 truncate mt-0.5">{channel.category || 'Local'}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ==================== TAB 4: MY SPACE ==================== */}
+        {activeTab === 'myspace' && (
+          <div className="space-y-4">
+            <div className="glass-card rounded-3xl p-5 text-center border border-white/10">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-r from-cyan-400 to-blue-600 p-1 mx-auto mb-3">
+                <div className="w-full h-full rounded-full bg-slate-950 flex items-center justify-center font-extrabold text-xl text-cyan-400">
+                  U
+                </div>
+              </div>
+              <h2 className="font-bold text-lg text-white">Tech TV Admin</h2>
+              <p className="text-xs text-slate-400 mt-1">Supabase ID: fqixivwmtggpuftrnxxq</p>
+            </div>
+
+            <button 
+              onClick={fetchChannels}
+              className="w-full py-3 rounded-2xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 font-bold text-xs flex items-center justify-center gap-2"
+            >
+              <Radio size={16} /> Refresh Channels Database
+            </button>
+          </div>
+        )}
+
+      </main>
+
+      {/* 5. BOTTOM NAVIGATION BAR */}
+      <nav className="fixed bottom-0 inset-x-0 z-50 glass-nav px-6 py-2.5 flex items-center justify-between max-w-md mx-auto">
+        
+        <button 
+          onClick={() => setActiveTab('home')}
+          className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'home' ? 'text-cyan-400 scale-105' : 'text-slate-500 hover:text-slate-300'}`}
+        >
+          <Home size={20} className={activeTab === 'home' ? 'drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]' : ''} />
+          <span className="text-[10px] font-bold">Home</span>
+        </button>
+
+        <button 
+          onClick={() => setActiveTab('discover')}
+          className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'discover' ? 'text-cyan-400 scale-105' : 'text-slate-500 hover:text-slate-300'}`}
+        >
+          <Compass size={20} className={activeTab === 'discover' ? 'drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]' : ''} />
+          <span className="text-[10px] font-bold">Discover</span>
+        </button>
+
+        <button 
+          onClick={() => setActiveTab('live')}
+          className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'live' ? 'text-cyan-400 scale-105' : 'text-slate-500 hover:text-slate-300'}`}
+        >
+          <Tv size={20} className={activeTab === 'live' ? 'drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]' : ''} />
+          <span className="text-[10px] font-bold">Live & Sports</span>
+        </button>
+
+        <button 
+          onClick={() => setActiveTab('myspace')}
+          className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'myspace' ? 'text-cyan-400 scale-105' : 'text-slate-500 hover:text-slate-300'}`}
+        >
+          <User size={20} className={activeTab === 'myspace' ? 'drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]' : ''} />
+          <span className="text-[10px] font-bold">My Space</span>
+        </button>
+
+      </nav>
+
     </div>
   );
 }
-
-export default App;
