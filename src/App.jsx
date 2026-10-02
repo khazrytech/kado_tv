@@ -5,7 +5,7 @@ import {
   Tv, 
   User, 
   Play, 
-  Pause,
+  Pause, 
   Plus, 
   Check, 
   Search, 
@@ -16,10 +16,10 @@ import {
   Sparkles,
   Volume2,
   VolumeX,
-  Maximize
+  Maximize,
+  Tv2
 } from 'lucide-react';
 
-// Default Channels zilizohakikiwa
 const DEFAULT_CHANNELS = [
   {
     id: 'ch-1',
@@ -54,7 +54,7 @@ const DEFAULT_CHANNELS = [
     category: 'Entertainment',
     description: 'Kituo cha burudani, muziki, filamu, maisha ya vijana na matukio ya sanaa.',
     stream_url: 'https://goliveafrica.media:9998/live/625965017ed70/index.m3u8',
-    logo_url: 'https://upload.wikimedia.org/wikipedia/commons/4/46/ITV_Tanzania_logo.jpg',
+    logo_url: '',
     is_featured: false
   },
   {
@@ -63,7 +63,7 @@ const DEFAULT_CHANNELS = [
     category: 'Entertainment',
     description: 'Kituo cha burudani cha Wasafi Media kinachorusha muziki, maisha ya wasanii na michezo.',
     stream_url: 'https://goliveafrica.media:9998/live/625965017ed71/index.m3u8',
-    logo_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/TBC1_logo.png/320px-TBC1_logo.png',
+    logo_url: '',
     is_featured: false
   },
   {
@@ -72,7 +72,7 @@ const DEFAULT_CHANNELS = [
     category: 'Sports & Youth',
     description: 'East Africa TV - Kituo cha vijana kinachorusha burudani, muziki na habari za Afrika Mashariki.',
     stream_url: 'https://goliveafrica.media:9998/live/625965017ed72/index.m3u8',
-    logo_url: 'https://upload.wikimedia.org/wikipedia/commons/4/46/ITV_Tanzania_logo.jpg',
+    logo_url: '',
     is_featured: false
   }
 ];
@@ -80,7 +80,7 @@ const DEFAULT_CHANNELS = [
 export default function App() {
   const [activeTab, setActiveTab] = useState('home'); 
   const [channels, setChannels] = useState(DEFAULT_CHANNELS);
-  const [playingChannel, setPlayingChannel] = useState(null); // Active Channel inayoplay kwenye Hero Area
+  const [playingChannel, setPlayingChannel] = useState(null);
   const [myList, setMyList] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [heroIndex, setHeroIndex] = useState(0);
@@ -88,7 +88,19 @@ export default function App() {
   // Player States
   const [isPlaying, setIsPlaying] = useState(true);
   const [isMuted, setIsMuted] = useState(false);
+  const [hasError, setHasError] = useState(false);
   const videoRef = useRef(null);
+  const hlsRef = useRef(null);
+
+  // Load HLS.js Dynamically kwa ajili ya Browser za Android
+  useEffect(() => {
+    if (!document.getElementById('hls-script')) {
+      const script = document.createElement('script');
+      script.id = 'hls-script';
+      script.src = 'https://cdn.jsdelivr.net/npm/hls.js@latest';
+      document.head.appendChild(script);
+    }
+  }, []);
 
   // Fetch Supabase
   useEffect(() => {
@@ -112,6 +124,61 @@ export default function App() {
     }
   };
 
+  // Playback HLS Engine Integration
+  useEffect(() => {
+    if (!playingChannel || !videoRef.current) return;
+
+    setHasError(false);
+    setIsPlaying(true);
+    const video = videoRef.current;
+    const streamUrl = playingChannel.stream_url;
+
+    if (hlsRef.current) {
+      hlsRef.current.destroy();
+      hlsRef.current = null;
+    }
+
+    const startHls = () => {
+      if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = streamUrl;
+        video.play().catch(err => console.log('Autoplay blocked:', err));
+      } else if (window.Hls && window.Hls.isSupported()) {
+        const hls = new window.Hls({ enableWorker: true, lowLatencyMode: true });
+        hlsRef.current = hls;
+        hls.loadSource(streamUrl);
+        hls.attachMedia(video);
+        hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
+          video.play().catch(err => console.log('Autoplay blocked:', err));
+        });
+        hls.on(window.Hls.Events.ERROR, (event, data) => {
+          if (data.fatal) {
+            console.warn('HLS Fatal Error:', data);
+            setHasError(true);
+          }
+        });
+      } else {
+        video.src = streamUrl;
+        video.play().catch(err => console.log('Playback error:', err));
+      }
+    };
+
+    if (window.Hls) {
+      startHls();
+    } else {
+      const timer = setTimeout(() => {
+        startHls();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+
+    return () => {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+    };
+  }, [playingChannel]);
+
   const categoriesList = ['Local', 'Entertainment', 'Sports & Youth', 'News'];
 
   const getChannelsByCategory = (cat) => {
@@ -122,7 +189,6 @@ export default function App() {
     ? channels.filter(c => c.is_featured) 
     : channels;
 
-  // Auto Slider ya Hero Section (Inasimama wakati kuna video inayocheza)
   useEffect(() => {
     if (playingChannel || featuredChannels.length <= 1) return;
     const timer = setInterval(() => {
@@ -135,12 +201,15 @@ export default function App() {
 
   const handlePlayChannel = (channel) => {
     setPlayingChannel(channel);
-    setIsPlaying(true);
     setActiveTab('home');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleStopStream = () => {
+    if (hlsRef.current) {
+      hlsRef.current.destroy();
+      hlsRef.current = null;
+    }
     setPlayingChannel(null);
   };
 
@@ -174,6 +243,8 @@ export default function App() {
     if (videoRef.current) {
       if (videoRef.current.requestFullscreen) {
         videoRef.current.requestFullscreen();
+      } else if (videoRef.current.webkitRequestFullscreen) {
+        videoRef.current.webkitRequestFullscreen();
       }
     }
   };
@@ -216,69 +287,69 @@ export default function App() {
         {activeTab === 'home' && (
           <div className="space-y-6">
 
-            {/* HERO AREA: INLINE PLAYER AU HERO CAROUSEL BANNER */}
+            {/* HERO AREA: SINGLE CUSTOM PLAYER */}
             {playingChannel ? (
-              /* INLINE HERO VIDEO PLAYER (Player inakaa hapa hapa kwenye eneo la Hero) */
               <div className="relative w-full aspect-video rounded-3xl overflow-hidden border border-cyan-500/40 shadow-2xl bg-black group fade-in-hero">
                 
-                {/* Video Stream / Fallback Iframe */}
+                {/* HTML5 Video without browser default controls */}
                 <video
                   ref={videoRef}
-                  src={playingChannel.stream_url}
-                  autoPlay
                   playsInline
+                  autoPlay
                   className="w-full h-full object-contain"
-                  onError={(e) => {
-                    e.target.style.display = 'none';
-                    const iframe = document.getElementById('hero-iframe');
-                    if (iframe) iframe.style.display = 'block';
-                  }}
+                  onPlay={() => setIsPlaying(true)}
+                  onPause={() => setIsPlaying(false)}
+                  onError={() => setHasError(true)}
                 />
 
-                <iframe 
-                  id="hero-iframe"
-                  src={playingChannel.stream_url} 
-                  title={playingChannel.name}
-                  className="w-full h-full border-0 hidden"
-                  allow="autoplay; encrypted-media; picture-in-picture"
-                  allowFullScreen
-                />
+                {/* Error Overlay */}
+                {hasError && (
+                  <div className="absolute inset-0 bg-slate-950/90 flex flex-col items-center justify-center p-4 text-center z-20">
+                    <Tv2 className="text-rose-500 mb-2" size={32} />
+                    <p className="text-xs font-bold text-white">Stream Haipatikani kwa Sasa</p>
+                    <p className="text-[10px] text-slate-400 mt-1">Kituo hiki kinaweza kuwa hakirushi matangazo kwa sasa.</p>
+                  </div>
+                )}
 
-                {/* Close Button ya Kufunga Stream na Kurudisha Hero Banner */}
+                {/* Close Button */}
                 <button 
                   onClick={handleStopStream}
                   className="absolute top-3 right-3 z-30 p-2 rounded-full bg-black/80 text-white hover:bg-rose-600 transition-colors border border-white/20 backdrop-blur-md"
-                  title="Funga Stream / Rudi Hero Banner"
+                  title="Funga Stream"
                 >
                   <X size={18} />
                 </button>
 
-                {/* Controls Bar ya Player */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 p-3 flex flex-col justify-between">
+                {/* Custom Overlay Controls */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-black/30 opacity-90 group-hover:opacity-100 transition-opacity p-3 flex flex-col justify-between pointer-events-none">
                   
-                  <div className="flex items-center justify-between">
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-red-600 text-white text-[9px] font-black uppercase tracking-wider">
+                  <div className="flex items-center justify-between pointer-events-auto">
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-600/90 text-white text-[9px] font-black uppercase tracking-wider shadow-lg">
                       <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                      LIVE STREAM
+                      LIVE
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between gap-3 bg-slate-950/80 p-2 rounded-2xl backdrop-blur-md border border-white/10">
-                    <button onClick={togglePlay} className="p-2 rounded-xl bg-cyan-400 text-black font-bold">
+                  {/* Single Player Control Bar */}
+                  <div className="flex items-center justify-between gap-3 bg-slate-950/85 p-2.5 rounded-2xl backdrop-blur-md border border-white/10 pointer-events-auto shadow-xl">
+                    <button 
+                      onClick={togglePlay} 
+                      className="p-2.5 rounded-xl bg-cyan-400 text-black font-extrabold hover:bg-cyan-300 transition-transform active:scale-95"
+                    >
                       {isPlaying ? <Pause size={16} /> : <Play size={16} className="fill-current" />}
                     </button>
 
                     <div className="flex-1 min-w-0">
                       <h3 className="text-xs font-bold text-white truncate">{playingChannel.name}</h3>
-                      <p className="text-[10px] text-slate-400 truncate">{playingChannel.category || 'Local'}</p>
+                      <p className="text-[10px] text-cyan-400 font-medium truncate">{playingChannel.category || 'Local'}</p>
                     </div>
 
                     <div className="flex items-center gap-1">
                       <button onClick={toggleMute} className="p-2 rounded-lg bg-white/10 text-white hover:bg-white/20">
-                        {isMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+                        {isMuted ? <VolumeX size={15} /> : <Volume2 size={15} />}
                       </button>
                       <button onClick={handleFullscreen} className="p-2 rounded-lg bg-white/10 text-white hover:bg-white/20">
-                        <Maximize size={14} />
+                        <Maximize size={15} />
                       </button>
                     </div>
                   </div>
@@ -287,7 +358,7 @@ export default function App() {
 
               </div>
             ) : (
-              /* HERO BANNER CAROUSEL (Inatokea pale ambapo hakuna video inayoplay) */
+              /* HERO BANNER CAROUSEL */
               <div key={currentHero.id || heroIndex} className="fade-in-hero relative w-full h-[360px] rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-slate-950 group">
                 
                 <div className="absolute inset-0 bg-gradient-to-b from-slate-900/40 via-slate-950/80 to-[#06090e] flex items-center justify-center p-8">
@@ -299,7 +370,7 @@ export default function App() {
                       onError={(e) => { e.target.style.display = 'none'; }}
                     />
                   ) : (
-                    <div className="w-24 h-24 rounded-3xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-3xl font-black text-white">
+                    <div className="w-24 h-24 rounded-3xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-3xl font-black text-white shadow-xl shadow-cyan-500/20">
                       {currentHero.name.charAt(0)}
                     </div>
                   )}
@@ -356,7 +427,7 @@ export default function App() {
               </div>
             )}
 
-            {/* CATEGORIES WITH HORIZONTAL SCROLLING CAROUSELS */}
+            {/* CATEGORIES WITH CAROUSELS (HAKUNA DUPLICATED TEXT) */}
             {categoriesList.map((cat, idx) => {
               const catChannels = getChannelsByCategory(cat);
               if (catChannels.length === 0) return null;
@@ -379,6 +450,7 @@ export default function App() {
                         onClick={() => handlePlayChannel(channel)}
                         className={`w-40 shrink-0 glass-card rounded-2xl overflow-hidden group cursor-pointer border transition-all active:scale-95 ${playingChannel?.id === channel.id ? 'border-cyan-400 shadow-lg shadow-cyan-500/20 ring-2 ring-cyan-400/50' : 'border-white/5 hover:border-cyan-500/50'}`}
                       >
+                        {/* Thumbnail Container */}
                         <div className="aspect-video w-full bg-slate-950 flex items-center justify-center relative p-2">
                           {channel.logo_url ? (
                             <img 
@@ -392,15 +464,20 @@ export default function App() {
                             />
                           ) : null}
                           
-                          <div className="w-full h-full rounded-xl bg-gradient-to-tr from-cyan-900/40 to-slate-900 hidden items-center justify-center font-black text-cyan-300 text-xs text-center p-1">
-                            {channel.name}
+                          {/* Fallback Icon Badge (Haioneshi majina yaliyojirudia) */}
+                          <div 
+                            className={`w-12 h-12 rounded-xl bg-gradient-to-tr from-cyan-500/20 to-indigo-500/20 border border-cyan-500/30 items-center justify-center ${channel.logo_url ? 'hidden' : 'flex'}`}
+                          >
+                            <Tv2 className="text-cyan-400" size={22} />
                           </div>
 
                           <span className={`absolute top-2 left-2 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${playingChannel?.id === channel.id ? 'bg-cyan-400 text-black' : 'bg-red-600 text-white'}`}>
                             {playingChannel?.id === channel.id ? 'PLAYING' : 'LIVE'}
                           </span>
                         </div>
-                        <div className="p-2.5">
+
+                        {/* Card Title Section */}
+                        <div className="p-2.5 bg-slate-900/60">
                           <h3 className="font-bold text-xs text-white truncate group-hover:text-cyan-300 transition-colors">{channel.name}</h3>
                           <p className="text-[10px] text-slate-400 truncate mt-0.5">{channel.category || 'Local'}</p>
                         </div>
@@ -436,14 +513,22 @@ export default function App() {
                   className="glass-card rounded-2xl overflow-hidden cursor-pointer group border border-white/5 hover:border-cyan-500/50 transition-all"
                 >
                   <div className="aspect-video w-full bg-slate-950 flex items-center justify-center relative p-2">
-                    <img 
-                      src={channel.logo_url} 
-                      alt={channel.name} 
-                      className="channel-logo-fix"
-                      onError={(e) => { e.target.style.display = 'none'; }}
-                    />
+                    {channel.logo_url ? (
+                      <img 
+                        src={channel.logo_url} 
+                        alt={channel.name} 
+                        className="channel-logo-fix"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
+                        }}
+                      />
+                    ) : null}
+                    <div className={`w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 items-center justify-center ${channel.logo_url ? 'hidden' : 'flex'}`}>
+                      <Tv2 className="text-cyan-400" size={20} />
+                    </div>
                   </div>
-                  <div className="p-2.5">
+                  <div className="p-2.5 bg-slate-900/60">
                     <h3 className="font-bold text-xs text-white truncate">{channel.name}</h3>
                     <p className="text-[10px] text-slate-400 truncate mt-0.5">{channel.category || 'Local'}</p>
                   </div>
@@ -464,17 +549,25 @@ export default function App() {
                   className="glass-card rounded-2xl overflow-hidden cursor-pointer group border border-white/5 hover:border-cyan-500/50 transition-all"
                 >
                   <div className="aspect-video w-full bg-slate-950 flex items-center justify-center relative p-2">
-                    <img 
-                      src={channel.logo_url} 
-                      alt={channel.name} 
-                      className="channel-logo-fix"
-                      onError={(e) => { e.target.style.display = 'none'; }}
-                    />
+                    {channel.logo_url ? (
+                      <img 
+                        src={channel.logo_url} 
+                        alt={channel.name} 
+                        className="channel-logo-fix"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
+                        }}
+                      />
+                    ) : null}
+                    <div className={`w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 items-center justify-center ${channel.logo_url ? 'hidden' : 'flex'}`}>
+                      <Tv2 className="text-cyan-400" size={20} />
+                    </div>
                     <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[9px] font-black bg-red-600 text-white uppercase tracking-wider">
                       LIVE
                     </span>
                   </div>
-                  <div className="p-2.5">
+                  <div className="p-2.5 bg-slate-900/60">
                     <h3 className="font-bold text-xs text-white truncate">{channel.name}</h3>
                     <p className="text-[10px] text-slate-400 truncate mt-0.5">{channel.category || 'Local'}</p>
                   </div>
