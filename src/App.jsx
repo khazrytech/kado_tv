@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Home, Compass, Tv, User, Play, Pause, 
-  Search, Cast, X, Radio, Volume2, Trophy, Tv2
+  Search, Cast, X, Radio, Volume2, Trophy, Tv2, ListTree
 } from 'lucide-react';
 
 // COMPONENT YA AUTO-SCROLL KWA KILA CATEGORY
@@ -113,7 +113,7 @@ export default function App() {
     fetchSupabaseChannels();
   }, []);
 
-  // Fetch Channels KUTOKA SUPABASE PEKEE
+  // Fetch Channels kutoka Supabase
   const fetchSupabaseChannels = async () => {
     setIsLoadingSupabase(true);
     try {
@@ -134,7 +134,7 @@ export default function App() {
     }
   };
 
-  // CORS FIX: ADVANCED STREAM PLAYER WITH PROXY FALLBACK
+  // CORS FIX & SINGLE HLS PLAYER WITH PROXY FALLBACK
   const startStream = (url, forceProxy = false) => {
     if (!videoRef.current) return;
     setHasError(false);
@@ -216,7 +216,6 @@ export default function App() {
 
   const handlePlayChannel = (channel) => {
     setPlayingChannel(channel);
-    setActiveTab('home');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -241,32 +240,36 @@ export default function App() {
       </header>
 
       <main className="max-w-md mx-auto px-4 pt-3">
+        {/* SINGLE HLS VIDEO PLAYER - INATUMIKA KILA MAHALI */}
+        {playingChannel && (
+          <div className="relative w-full aspect-video rounded-3xl overflow-hidden border border-cyan-500/40 shadow-2xl bg-black group mb-6">
+            <video ref={videoRef} playsInline autoPlay className="w-full h-full object-contain" onPlay={() => setIsPlaying(true)} onPause={() => setIsPlaying(false)} />
+            {hasError && (
+              <div className="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center p-4 text-center z-20">
+                <Tv2 className="text-rose-500 mb-2" size={32} />
+                <p className="text-xs font-bold text-white">Stream Imegoma Kucheza (CORS/Network Issue)</p>
+                <button onClick={() => startStream(playingChannel.stream_url, true)} className="mt-3 px-3 py-1.5 rounded-xl bg-cyan-500 text-black font-bold text-[11px]">Jaribu Proxy Tena</button>
+              </div>
+            )}
+            <button onClick={handleStopStream} className="absolute top-3 right-3 z-30 p-2 rounded-full bg-black/80 text-white border border-white/20"><X size={18} /></button>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-black/30 opacity-90 group-hover:opacity-100 transition-opacity p-3 flex flex-col justify-end pointer-events-none">
+              <div className="flex items-center justify-between gap-3 bg-slate-950/85 p-2.5 rounded-2xl border border-white/10 pointer-events-auto shadow-xl">
+                <button onClick={() => { videoRef.current[isPlaying ? 'pause' : 'play'](); setIsPlaying(!isPlaying); }} className="p-2.5 rounded-xl bg-cyan-400 text-black">
+                  {isPlaying ? <Pause size={16} /> : <Play size={16} className="fill-current" />}
+                </button>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-xs font-bold text-white truncate">{playingChannel.name}</h3>
+                </div>
+                <button onClick={() => { videoRef.current.muted = !isMuted; setIsMuted(!isMuted); }} className="p-2 rounded-lg bg-white/10 text-white"><Volume2 size={15} /></button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* HOME TAB */}
         {activeTab === 'home' && (
           <div className="space-y-2">
-            {playingChannel ? (
-              <div className="relative w-full aspect-video rounded-3xl overflow-hidden border border-cyan-500/40 shadow-2xl bg-black group mb-6">
-                <video ref={videoRef} playsInline autoPlay className="w-full h-full object-contain" onPlay={() => setIsPlaying(true)} onPause={() => setIsPlaying(false)} />
-                {hasError && (
-                  <div className="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center p-4 text-center z-20">
-                    <Tv2 className="text-rose-500 mb-2" size={32} />
-                    <p className="text-xs font-bold text-white">Stream Imegoma Kucheza (CORS/Network Issue)</p>
-                    <button onClick={() => startStream(playingChannel.stream_url, true)} className="mt-3 px-3 py-1.5 rounded-xl bg-cyan-500 text-black font-bold text-[11px]">Jaribu Proxy Tena</button>
-                  </div>
-                )}
-                <button onClick={handleStopStream} className="absolute top-3 right-3 z-30 p-2 rounded-full bg-black/80 text-white border border-white/20"><X size={18} /></button>
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-black/30 opacity-90 group-hover:opacity-100 transition-opacity p-3 flex flex-col justify-end pointer-events-none">
-                  <div className="flex items-center justify-between gap-3 bg-slate-950/85 p-2.5 rounded-2xl border border-white/10 pointer-events-auto shadow-xl">
-                    <button onClick={() => { videoRef.current[isPlaying ? 'pause' : 'play'](); setIsPlaying(!isPlaying); }} className="p-2.5 rounded-xl bg-cyan-400 text-black">
-                      {isPlaying ? <Pause size={16} /> : <Play size={16} className="fill-current" />}
-                    </button>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-xs font-bold text-white truncate">{playingChannel.name}</h3>
-                    </div>
-                    <button onClick={() => { videoRef.current.muted = !isMuted; setIsMuted(!isMuted); }} className="p-2 rounded-lg bg-white/10 text-white"><Volume2 size={15} /></button>
-                  </div>
-                </div>
-              </div>
-            ) : currentHero ? (
+            {!playingChannel && currentHero && (
               <div className="relative w-full h-[360px] rounded-3xl overflow-hidden bg-slate-950 border border-white/10 mb-6">
                 <div className="absolute inset-0 bg-gradient-to-b from-slate-900/40 to-[#06090e] flex items-center justify-center p-8">
                    <div className="w-24 h-24 rounded-3xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-3xl font-black text-white shadow-xl">
@@ -280,12 +283,6 @@ export default function App() {
                     <Play size={16} className="fill-black" /> Watch Live
                   </button>
                 </div>
-              </div>
-            ) : (
-              <div className="text-center py-20 glass-card rounded-3xl p-6 border border-white/10">
-                <Tv2 className="mx-auto text-cyan-400 mb-3" size={40} />
-                <h2 className="text-sm font-bold text-white">Hakuna Chaneli Zilizopatikana</h2>
-                <p className="text-xs text-slate-400 mt-1">Tafadhali ongeza chaneli (ikiwemo Sports) kwenye database yako ya Supabase.</p>
               </div>
             )}
 
@@ -310,10 +307,56 @@ export default function App() {
           </div>
         )}
 
+        {/* IPTV TAB MAALUM */}
+        {activeTab === 'iptv' && (
+          <div className="space-y-6 pt-2">
+            <div className="glass-card rounded-3xl p-5 border border-cyan-500/20 bg-gradient-to-br from-cyan-500/10 to-transparent">
+              <h2 className="text-base font-black text-white flex items-center gap-2">
+                <ListTree className="text-cyan-400" size={20} /> IPTV Channels Manager
+              </h2>
+              <p className="text-xs text-slate-300 mt-1">Chaneli zote za IPTV zilizowekwa kupitia Supabase zimepangwa hapa chini kwa kila kategoria kwa mfumo wa Grid na Auto-Scroll.</p>
+            </div>
+
+            {uniqueCategories.map((cat, idx) => {
+              const catChannels = channels.filter(c => (c.category || 'Uncategorized') === cat);
+              if (catChannels.length === 0) return null;
+
+              return (
+                <div key={idx} className="space-y-3">
+                  <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                    <h3 className="text-xs font-extrabold text-cyan-400 uppercase tracking-wider">{cat} ({catChannels.length})</h3>
+                  </div>
+                  {/* Grid layout kwa ajili ya kufungua category na kuona zote vizuri */}
+                  <div className="grid grid-cols-2 gap-3">
+                    {catChannels.map((channel) => (
+                      <div 
+                        key={channel.id || channel.name} 
+                        onClick={() => handlePlayChannel(channel)}
+                        className={`glass-card rounded-2xl overflow-hidden group cursor-pointer border transition-all active:scale-95 p-2 flex flex-col justify-between ${playingChannel?.id === channel.id ? 'border-cyan-400 shadow-md shadow-cyan-500/20 ring-1 ring-cyan-400' : 'border-white/5 hover:border-cyan-500/40'}`}
+                      >
+                        <div className="aspect-video w-full bg-slate-950 rounded-xl flex items-center justify-center relative p-2 mb-2">
+                          {channel.logo_url ? (
+                            <img src={channel.logo_url} alt={channel.name} className="max-h-full max-w-full object-contain" onError={(e) => { e.target.style.display = 'none'; }} />
+                          ) : (
+                            <Tv2 className="text-cyan-400/70" size={24} />
+                          )}
+                          <span className="absolute top-1 right-1 px-1.5 py-0.5 rounded text-[7px] font-black bg-red-600 text-white">LIVE</span>
+                        </div>
+                        <h4 className="font-bold text-xs text-white truncate">{channel.name}</h4>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* MYSPACE / SETTINGS TAB */}
         {activeTab === 'myspace' && (
           <div className="space-y-4 pt-4">
              <div className="glass-card rounded-3xl p-5 text-center border border-white/10">
-                <h2 className="font-bold text-lg text-white">Supabase Database</h2>
+                <h2 className="font-bold text-lg text-white">Supabase Connection</h2>
                 <p className="text-xs text-slate-400 mt-1">Total Channels Loaded: {channels.length}</p>
              </div>
              <button onClick={fetchSupabaseChannels} className="w-full py-3 rounded-2xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 font-bold text-xs flex items-center justify-center gap-2">
@@ -323,16 +366,22 @@ export default function App() {
         )}
       </main>
 
+      {/* BOTTOM NAV NA IPTV IMEWEKWA */}
       <nav className="fixed bottom-0 inset-x-0 z-50 bg-[#06090e]/90 backdrop-blur-lg border-t border-white/5 px-6 py-2.5 flex items-center justify-between max-w-md mx-auto">
-        {['home', 'discover', 'live', 'myspace'].map(tab => (
-          <button key={tab} onClick={() => setActiveTab(tab)} className={`flex flex-col items-center gap-1 ${activeTab === tab ? 'text-cyan-400' : 'text-slate-500'}`}>
-            {tab === 'home' && <Home size={20} />}
-            {tab === 'discover' && <Compass size={20} />}
-            {tab === 'live' && <Tv size={20} />}
-            {tab === 'myspace' && <User size={20} />}
-            <span className="text-[10px] font-bold capitalize">{tab}</span>
-          </button>
-        ))}
+        {[
+          { id: 'home', label: 'Home', icon: Home },
+          { id: 'iptv', label: 'IPTV', icon: Tv },
+          { id: 'discover', label: 'Discover', icon: Compass },
+          { id: 'myspace', label: 'My Space', icon: User }
+        ].map(tab => {
+          const Icon = tab.icon;
+          return (
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex flex-col items-center gap-1 ${activeTab === tab.id ? 'text-cyan-400' : 'text-slate-500'}`}>
+              <Icon size={20} />
+              <span className="text-[10px] font-bold capitalize">{tab.label}</span>
+            </button>
+          );
+        })}
       </nav>
     </div>
   );
