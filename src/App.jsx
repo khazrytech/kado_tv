@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Home, 
   Compass, 
   Tv, 
   User, 
   Play, 
+  Pause,
   Plus, 
   Check, 
   Search, 
@@ -14,11 +15,17 @@ import {
   X, 
   Radio, 
   Sparkles,
-  Heart
+  Volume2,
+  VolumeX,
+  Maximize,
+  Shield,
+  Heart,
+  Globe,
+  Film
 } from 'lucide-react';
 
-// Channel za Mwanzo (Default Channels) ili site isiwahi kubaki tupu!
-const INITIAL_CHANNELS = [
+// Default Channels zilizohakikiwa
+const DEFAULT_CHANNELS = [
   {
     id: 'ch-1',
     name: 'Dodoma TV',
@@ -49,7 +56,7 @@ const INITIAL_CHANNELS = [
   {
     id: 'ch-4',
     name: 'Clouds TV',
-    category: 'Local',
+    category: 'Entertainment',
     description: 'Kituo cha burudani, muziki, filamu, maisha ya vijana na matukio ya sanaa.',
     stream_url: 'https://goliveafrica.media:9998/live/625965017ed70/index.m3u8',
     logo_url: 'https://upload.wikimedia.org/wikipedia/commons/4/46/ITV_Tanzania_logo.jpg',
@@ -58,7 +65,7 @@ const INITIAL_CHANNELS = [
   {
     id: 'ch-5',
     name: 'Wasafi TV',
-    category: 'Local',
+    category: 'Entertainment',
     description: 'Kituo cha burudani cha Wasafi Media kinachorusha muziki, maisha ya wasanii na michezo.',
     stream_url: 'https://goliveafrica.media:9998/live/625965017ed71/index.m3u8',
     logo_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/TBC1_logo.png/320px-TBC1_logo.png',
@@ -67,7 +74,7 @@ const INITIAL_CHANNELS = [
   {
     id: 'ch-6',
     name: 'EATV',
-    category: 'Local',
+    category: 'Sports & Youth',
     description: 'East Africa TV - Kituo cha vijana kinachorusha burudani, muziki na habari za Afrika Mashariki.',
     stream_url: 'https://goliveafrica.media:9998/live/625965017ed72/index.m3u8',
     logo_url: 'https://upload.wikimedia.org/wikipedia/commons/4/46/ITV_Tanzania_logo.jpg',
@@ -76,15 +83,19 @@ const INITIAL_CHANNELS = [
 ];
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('home'); // home, discover, live, myspace
-  const [channels, setChannels] = useState(INITIAL_CHANNELS);
-  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [activeTab, setActiveTab] = useState('home'); 
+  const [channels, setChannels] = useState(DEFAULT_CHANNELS);
   const [selectedChannel, setSelectedChannel] = useState(null);
   const [myList, setMyList] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [heroIndex, setHeroIndex] = useState(0);
 
-  // Fetch Supabase via Direct REST Endpoint
+  // Player States
+  const [isPlaying, setIsPlaying] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
+  const videoRef = useRef(null);
+
+  // Fetch kutoka Supabase
   useEffect(() => {
     fetchSupabaseChannels();
   }, []);
@@ -102,24 +113,27 @@ export default function App() {
         setChannels(data);
       }
     } catch (err) {
-      console.log('Using default local channels list:', err);
+      console.log('Using fallback channels:', err);
     }
   };
 
-  // Categories zote
-  const categories = ['All', 'Local', 'Sports', 'News', 'Entertainment'];
+  // Group Channels by Category
+  const categoriesList = ['Local', 'Entertainment', 'Sports & Youth', 'News'];
+  
+  const getChannelsByCategory = (cat) => {
+    return channels.filter(c => (c.category || 'Local').toLowerCase().includes(cat.toLowerCase()));
+  };
 
-  // Hero Channels Filter
   const featuredChannels = channels.filter(c => c.is_featured).length > 0 
     ? channels.filter(c => c.is_featured) 
     : channels;
 
-  // Auto Carousel ya Hero Section (kila sekunde 5)
+  // Auto Slider ya Hero Section
   useEffect(() => {
     if (featuredChannels.length <= 1) return;
     const timer = setInterval(() => {
       setHeroIndex((prev) => (prev + 1) % featuredChannels.length);
-    }, 5000);
+    }, 6000);
     return () => clearInterval(timer);
   }, [featuredChannels.length]);
 
@@ -133,19 +147,37 @@ export default function App() {
     }
   };
 
-  // Channel Filtering
-  const filteredChannels = channels.filter(c => {
-    const matchesCat = selectedCategory === 'All' || (c.category && c.category.toLowerCase() === selectedCategory.toLowerCase());
-    const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          (c.category && c.category.toLowerCase().includes(searchQuery.toLowerCase()));
-    return matchesCat && matchesSearch;
-  });
+  const togglePlay = () => {
+    if (videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.pause();
+      } else {
+        videoRef.current.play();
+      }
+      setIsPlaying(!isPlaying);
+    }
+  };
+
+  const toggleMute = () => {
+    if (videoRef.current) {
+      videoRef.current.muted = !isMuted;
+      setIsMuted(!isMuted);
+    }
+  };
+
+  const handleFullscreen = () => {
+    if (videoRef.current) {
+      if (videoRef.current.requestFullscreen) {
+        videoRef.current.requestFullscreen();
+      }
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-[#080b11] text-slate-100 pb-24 font-sans selection:bg-cyan-500 selection:text-black">
+    <div className="min-h-screen bg-[#06090e] text-slate-100 pb-16 font-sans selection:bg-cyan-500 selection:text-black">
       
-      {/* 1. HEADER */}
-      <header className="sticky top-0 z-40 bg-[#080b11]/90 backdrop-blur-xl border-b border-white/5 px-4 py-3 flex items-center justify-between">
+      {/* TOP HEADER */}
+      <header className="sticky top-0 z-40 bg-[#06090e]/90 backdrop-blur-xl border-b border-white/5 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-500 via-indigo-500 to-purple-600 flex items-center justify-center font-black text-white text-lg shadow-lg shadow-cyan-500/20">
             K
@@ -165,61 +197,121 @@ export default function App() {
             <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-cyan-400" />
           </button>
           <div className="w-8 h-8 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 p-[2px] cursor-pointer" onClick={() => setActiveTab('myspace')}>
-            <div className="w-full h-full rounded-full bg-[#080b11] flex items-center justify-center text-xs font-bold text-cyan-400">
+            <div className="w-full h-full rounded-full bg-[#06090e] flex items-center justify-center text-xs font-bold text-cyan-400">
               U
             </div>
           </div>
         </div>
       </header>
 
-      {/* VIDEO PLAYER MODAL */}
+      {/* MODERN CINEMA VIDEO PLAYER MODAL */}
       {selectedChannel && (
-        <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-2xl flex flex-col items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-2xl flex flex-col items-center justify-center p-2 md:p-6">
+          
+          {/* Close Button */}
           <button 
             onClick={() => setSelectedChannel(null)}
-            className="absolute top-4 right-4 p-3 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
+            className="absolute top-4 right-4 z-50 p-3 rounded-full bg-slate-900/80 text-white hover:bg-rose-600 transition-colors border border-white/10"
           >
-            <X size={24} />
+            <X size={22} />
           </button>
-          <div className="w-full max-w-4xl aspect-video bg-black rounded-2xl overflow-hidden border border-white/10 shadow-2xl relative">
+
+          <div className="w-full max-w-4xl aspect-video bg-black rounded-3xl overflow-hidden border border-white/10 shadow-2xl relative group">
+            
+            {/* Custom Video / Stream Container */}
+            <video
+              ref={videoRef}
+              src={selectedChannel.stream_url}
+              autoPlay
+              playsInline
+              className="w-full h-full object-contain"
+              onError={(e) => {
+                // Kama m3u8 inagoma ku-play direct, inafungua kupitia iframe fallback
+                e.target.style.display = 'none';
+                const iframe = document.getElementById('fallback-iframe');
+                if (iframe) iframe.style.display = 'block';
+              }}
+            />
+
             <iframe 
+              id="fallback-iframe"
               src={selectedChannel.stream_url} 
               title={selectedChannel.name}
-              className="w-full h-full border-0"
+              className="w-full h-full border-0 hidden"
               allow="autoplay; encrypted-media; picture-in-picture"
               allowFullScreen
             />
-          </div>
-          <div className="mt-4 text-center max-w-xl">
-            <h2 className="text-2xl font-bold text-white">{selectedChannel.name}</h2>
-            <p className="text-sm text-slate-400 mt-1">{selectedChannel.description || 'Matangazo Mubashara'}</p>
+
+            {/* Custom Cinema Control Overlay */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 p-4 flex flex-col justify-between">
+              
+              {/* Header inside player */}
+              <div className="flex items-center justify-between">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-600/80 text-white text-[10px] font-black uppercase tracking-wider backdrop-blur-md">
+                  <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                  LIVE HD 1080P
+                </div>
+                <span className="text-xs text-slate-300 font-semibold">{selectedChannel.category || 'Local'}</span>
+              </div>
+
+              {/* Bottom Controls */}
+              <div className="flex items-center justify-between gap-4">
+                <button onClick={togglePlay} className="p-3 rounded-2xl bg-cyan-500 text-black font-bold hover:bg-cyan-400 transition-all">
+                  {isPlaying ? <Pause size={20} /> : <Play size={20} className="fill-current" />}
+                </button>
+
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-sm font-bold text-white truncate">{selectedChannel.name}</h3>
+                  <p className="text-[11px] text-slate-400 truncate">{selectedChannel.description || 'Matangazo Mubashara'}</p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button onClick={toggleMute} className="p-2.5 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-all">
+                    {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                  </button>
+                  <button onClick={handleFullscreen} className="p-2.5 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-all">
+                    <Maximize size={18} />
+                  </button>
+                </div>
+              </div>
+
+            </div>
+
           </div>
         </div>
       )}
 
-      {/* MAIN CONTENT CONTAINER */}
+      {/* MAIN CONTAINER */}
       <main className="max-w-md mx-auto px-4 pt-3">
 
         {/* ==================== TAB 1: HOME ==================== */}
         {activeTab === 'home' && (
           <div className="space-y-6">
 
-            {/* HERO ANIMATED BANNER */}
+            {/* HERO ANIMATED BANNER (Na Auto Preview ya Stream ya Kwanza) */}
             <div key={currentHero.id || heroIndex} className="fade-in-hero relative w-full h-[360px] rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-slate-950 group">
               
-              <div className="absolute inset-0 bg-gradient-to-b from-slate-900/40 via-slate-950/80 to-[#080b11] flex items-center justify-center p-8">
-                {currentHero.logo_url && (
+              {/* Live Preview / Logo Backdrop */}
+              <div className="absolute inset-0 bg-gradient-to-b from-slate-900/40 via-slate-950/80 to-[#06090e] flex items-center justify-center p-8">
+                {currentHero.logo_url ? (
                   <img 
                     src={currentHero.logo_url} 
                     alt={currentHero.name} 
                     className="max-h-44 object-contain filter drop-shadow-[0_10px_20px_rgba(0,0,0,0.8)] group-hover:scale-105 transition-transform duration-700"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                    }}
                   />
+                ) : (
+                  <div className="w-24 h-24 rounded-3xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-3xl font-black text-white">
+                    {currentHero.name.charAt(0)}
+                  </div>
                 )}
               </div>
               
-              <div className="absolute inset-0 bg-gradient-to-t from-[#080b11] via-[#080b11]/60 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#06090e] via-[#06090e]/60 to-transparent" />
 
-              {/* Dots Indicator */}
+              {/* Slider Dots */}
               <div className="absolute top-4 right-4 flex items-center gap-1.5 z-20">
                 {featuredChannels.map((_, idx) => (
                   <span 
@@ -267,41 +359,61 @@ export default function App() {
               </div>
             </div>
 
-            {/* ALL LIVE CHANNELS GRID */}
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-sm font-bold text-white tracking-wide uppercase">All Live Channels</h2>
-                <button onClick={() => setActiveTab('live')} className="text-xs font-semibold text-cyan-400 hover:underline flex items-center gap-0.5">
-                  See all <ChevronRight size={14} />
-                </button>
-              </div>
+            {/* CATEGORIES WITH HORIZONTAL SCROLLING CAROUSELS (Sogea Kushoto - Kulia) */}
+            {categoriesList.map((cat, idx) => {
+              const catChannels = getChannelsByCategory(cat);
+              if (catChannels.length === 0) return null;
 
-              <div className="grid grid-cols-2 gap-3">
-                {channels.map((channel) => (
-                  <div 
-                    key={channel.id} 
-                    onClick={() => setSelectedChannel(channel)}
-                    className="glass-card rounded-2xl overflow-hidden group cursor-pointer border border-white/5 hover:border-cyan-500/50 transition-all"
-                  >
-                    <div className="aspect-video w-full bg-slate-950 flex items-center justify-center relative p-2">
-                      <img 
-                        src={channel.logo_url} 
-                        alt={channel.name} 
-                        className="channel-logo-fix"
-                        onError={(e) => { e.target.style.display = 'none'; }}
-                      />
-                      <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[9px] font-black bg-red-600 text-white uppercase tracking-wider">
-                        LIVE
-                      </span>
-                    </div>
-                    <div className="p-2.5">
-                      <h3 className="font-bold text-xs text-white truncate group-hover:text-cyan-300 transition-colors">{channel.name}</h3>
-                      <p className="text-[10px] text-slate-400 truncate mt-0.5">{channel.category || 'Local'}</p>
-                    </div>
+              return (
+                <div key={idx} className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-sm font-extrabold text-white tracking-wide uppercase flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-cyan-400" />
+                      {cat} Channels
+                    </h2>
+                    <span className="text-[11px] font-semibold text-cyan-400/80">Swipe &rarr;</span>
                   </div>
-                ))}
-              </div>
-            </div>
+
+                  {/* Horizontal Scroll Row */}
+                  <div className="flex items-center gap-3 overflow-x-auto scrollbar-none py-1">
+                    {catChannels.map((channel) => (
+                      <div 
+                        key={channel.id} 
+                        onClick={() => setSelectedChannel(channel)}
+                        className="w-40 shrink-0 glass-card rounded-2xl overflow-hidden group cursor-pointer border border-white/5 hover:border-cyan-500/50 transition-all active:scale-95"
+                      >
+                        <div className="aspect-video w-full bg-slate-950 flex items-center justify-center relative p-2">
+                          {channel.logo_url ? (
+                            <img 
+                              src={channel.logo_url} 
+                              alt={channel.name} 
+                              className="channel-logo-fix"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.nextSibling.style.display = 'flex';
+                              }}
+                            />
+                          ) : null}
+                          
+                          {/* Fallback Badge kama Picha imekata */}
+                          <div className="w-full h-full rounded-xl bg-gradient-to-tr from-cyan-900/40 to-slate-900 hidden items-center justify-center font-black text-cyan-300 text-xs text-center p-1">
+                            {channel.name}
+                          </div>
+
+                          <span className="absolute top-2 left-2 px-1.5 py-0.5 rounded text-[8px] font-black bg-red-600 text-white uppercase tracking-wider">
+                            LIVE
+                          </span>
+                        </div>
+                        <div className="p-2.5">
+                          <h3 className="font-bold text-xs text-white truncate group-hover:text-cyan-300 transition-colors">{channel.name}</h3>
+                          <p className="text-[10px] text-slate-400 truncate mt-0.5">{channel.category || 'Local'}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
 
           </div>
         )}
@@ -320,20 +432,8 @@ export default function App() {
               />
             </div>
 
-            <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-              {categories.map((cat, idx) => (
-                <button 
-                  key={idx} 
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${selectedCategory === cat ? 'bg-cyan-400 text-black shadow-lg shadow-cyan-400/20' : 'bg-slate-900 text-slate-300 border border-white/10 hover:bg-slate-800'}`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-
             <div className="grid grid-cols-2 gap-3">
-              {filteredChannels.map((channel) => (
+              {channels.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase())).map((channel) => (
                 <div 
                   key={channel.id} 
                   onClick={() => setSelectedChannel(channel)}
@@ -360,20 +460,8 @@ export default function App() {
         {/* ==================== TAB 3: LIVE TV ==================== */}
         {activeTab === 'live' && (
           <div className="space-y-4">
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-              {categories.map((cat, i) => (
-                <button 
-                  key={i} 
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${selectedCategory === cat ? 'bg-cyan-400 text-black' : 'bg-slate-900 text-slate-300 border border-white/10'}`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-
             <div className="grid grid-cols-2 gap-3">
-              {filteredChannels.map((channel) => (
+              {channels.map((channel) => (
                 <div 
                   key={channel.id} 
                   onClick={() => setSelectedChannel(channel)}
@@ -422,9 +510,28 @@ export default function App() {
           </div>
         )}
 
+        {/* MODERN FOOTER */}
+        <footer className="mt-12 pt-8 pb-12 border-t border-white/5 text-center text-slate-500 text-xs space-y-3">
+          <div className="flex items-center justify-center gap-2">
+            <div className="w-6 h-6 rounded-lg bg-cyan-500 flex items-center justify-center text-black font-black text-xs">
+              K
+            </div>
+            <span className="font-bold text-slate-300 text-sm">KadoTV Cinema</span>
+          </div>
+          <p className="text-[11px] text-slate-400">Pata matangazo mubashara ya channels zote za Tanzania na kimataifa 24/7.</p>
+          <div className="flex items-center justify-center gap-4 text-[11px] text-cyan-400/80">
+            <span>Privacy Policy</span>
+            <span>•</span>
+            <span>Terms of Service</span>
+            <span>•</span>
+            <span>Support</span>
+          </div>
+          <p className="text-[10px] text-slate-600 pt-2">&copy; 2026 KadoTV. Designed by techboytz. All Rights Reserved.</p>
+        </footer>
+
       </main>
 
-      {/* 5. BOTTOM NAVIGATION BAR */}
+      {/* BOTTOM NAVIGATION BAR */}
       <nav className="fixed bottom-0 inset-x-0 z-50 glass-nav px-6 py-2.5 flex items-center justify-between max-w-md mx-auto">
         <button 
           onClick={() => setActiveTab('home')}
