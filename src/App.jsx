@@ -346,305 +346,185 @@ function HomePage({ session }) {
 
   const [slide, setSlide] = useState(0);
 
-  const featuredItems = featured.data || [];
   const channelItems = channels.data || [];
   const movieItems = movies.data || [];
   const seriesItems = series.data || [];
+  const featuredItems = featured.data || [];
 
   useEffect(() => {
-    if (featuredItems.length < 2) return;
+    if (featuredItems.length <= 1) return;
 
     const timer = setInterval(() => {
       setSlide((current) => (current + 1) % featuredItems.length);
-    }, 6000);
+    }, 6500);
 
     return () => clearInterval(timer);
   }, [featuredItems.length]);
 
   useEffect(() => {
-    if (
-      featuredItems.length > 0 &&
-      slide >= featuredItems.length
-    ) {
+    if (slide >= featuredItems.length && featuredItems.length) {
       setSlide(0);
     }
   }, [slide, featuredItems.length]);
 
   return (
-    <div className="home home-cinematic">
+    <div className="kado-home">
 
-      {/* CINEMATIC HERO */}
-      {featuredItems.length > 0 && (
-        <section className="cinema-hero">
-          <HomeHeroSlider
-            items={featuredItems}
-            index={slide}
-            setIndex={setSlide}
-          />
+      {/* HERO */}
+      <section className="kado-hero">
+        <HomeHeroSlider
+          items={featuredItems}
+          index={slide}
+          setIndex={setSlide}
+        />
+      </section>
 
-          <div className="hero-bottom-fade" />
-
-          <div className="hero-content-overlay">
-            <span className="hero-kicker">
-              <span className="hero-live-dot" />
-              FEATURED ON KADOTV
-            </span>
-
-            <h1>
-              {featuredItems[slide]?.name ||
-                featuredItems[slide]?.title ||
-                "Watch Something Amazing"}
-            </h1>
-
-            <p>
-              {featuredItems[slide]?.description ||
-                "Stream live channels, movies and series in one premium entertainment experience."}
-            </p>
-
-            <div className="hero-actions">
-              <a
-                className="hero-play-button"
-                href={
-                  featuredItems[slide]?.id
-                    ? `/watch/channel/${featuredItems[slide].id}`
-                    : "/channels"
-                }
-              >
-                <Play fill="currentColor" size={18} />
-                Watch Now
-              </a>
-
-              <a
-                className="hero-more-button"
-                href="/channels"
-              >
-                Explore Channels
-              </a>
+      {/* CONTINUE WATCHING */}
+      {session?.user?.id && (
+        <section className="kado-section">
+          <div className="kado-section-head">
+            <div>
+              <span>YOUR LIBRARY</span>
+              <h2>Continue Watching</h2>
             </div>
+
+            <button onClick={() => window.location.href = "/profile"}>
+              See all <ChevronRight size={16} />
+            </button>
           </div>
 
-          <div className="hero-dots">
-            {featuredItems.map((item, index) => (
-              <button
-                key={item.id || index}
-                className={index === slide ? "active" : ""}
-                onClick={() => setSlide(index)}
-                aria-label={`Slide ${index + 1}`}
-              />
+          <div className="kado-horizontal">
+            {movieItems.slice(0, 5).map((item) => (
+              <a
+                key={item.id}
+                href={`/watch/movie/${item.id}`}
+                className="kado-continue-card"
+              >
+                <div className="kado-continue-image">
+                  <img
+                    src={item.backdrop_url || item.poster_url || "/placeholder.png"}
+                    alt={item.title}
+                    loading="lazy"
+                  />
+                  <div className="kado-progress">
+                    <span />
+                  </div>
+                  <div className="kado-continue-play">
+                    <Play size={18} fill="currentColor" />
+                  </div>
+                </div>
+
+                <strong>{item.title}</strong>
+                <span>{item.release_year || "Movie"}</span>
+              </a>
             ))}
           </div>
         </section>
       )}
 
-      {/* WELCOME */}
-      <section className="welcome-strip">
-        <div>
-          <span className="section-eyebrow">WELCOME BACK</span>
-          <h2>Everything you love, in one place.</h2>
-        </div>
-
-        <a href="/search" className="discover-button">
-          Discover
-          <ChevronRight size={16} />
-        </a>
-      </section>
-
-      {/* QUICK CATEGORIES */}
-      <section className="cinema-section category-section">
-        <div className="section-heading">
-          <div>
-            <span className="section-eyebrow">BROWSE</span>
-            <h2>Explore KadoTV</h2>
-          </div>
-        </div>
-
-        <div className="cinema-categories">
-          <a href="/channels" className="category-card category-live">
-            <div className="category-icon">
-              <Radio size={23} />
-            </div>
+      {/* TRENDING */}
+      {movieItems.length > 0 && (
+        <section className="kado-section">
+          <div className="kado-section-head">
             <div>
-              <strong>Live TV</strong>
-              <span>{channelItems.length} Channels</span>
-            </div>
-            <ChevronRight size={17} />
-          </a>
-
-          <a href="/movies" className="category-card">
-            <div className="category-icon">
-              <Film size={23} />
-            </div>
-            <div>
-              <strong>Movies</strong>
-              <span>{movieItems.length} Titles</span>
-            </div>
-            <ChevronRight size={17} />
-          </a>
-
-          <a href="/series" className="category-card">
-            <div className="category-icon">
-              <Tv size={23} />
-            </div>
-            <div>
-              <strong>Series</strong>
-              <span>{seriesItems.length} Shows</span>
-            </div>
-            <ChevronRight size={17} />
-          </a>
-
-          <a href="/search" className="category-card">
-            <div className="category-icon">
-              <Sparkles size={23} />
-            </div>
-            <div>
-              <strong>Discover</strong>
-              <span>Find something new</span>
-            </div>
-            <ChevronRight size={17} />
-          </a>
-        </div>
-      </section>
-
-      {/* CONTINUE WATCHING */}
-      {session?.user?.id && (
-        <section className="cinema-section">
-          <div className="section-heading">
-            <div>
-              <span className="section-eyebrow">YOUR LIBRARY</span>
-              <h2>Continue Watching</h2>
+              <span>TRENDING NOW</span>
+              <h2>Popular Movies</h2>
             </div>
 
-            <a href="/profile">
-              View All <ChevronRight size={15} />
-            </a>
+            <button onClick={() => window.location.href = "/movies"}>
+              See all <ChevronRight size={16} />
+            </button>
           </div>
 
-          <div className="empty-continue">
-            <div className="empty-continue-icon">
-              <Play size={20} />
-            </div>
-            <div>
-              <strong>Your watch history will appear here</strong>
-              <span>
-                Start watching something and continue right where you stopped.
-              </span>
-            </div>
+          <div className="kado-poster-rail">
+            {movieItems.slice(0, 12).map((item, index) => (
+              <a
+                key={item.id}
+                href={`/watch/movie/${item.id}`}
+                className="kado-poster"
+              >
+                <div className="kado-rank">
+                  {String(index + 1).padStart(2, "0")}
+                </div>
+
+                <div className="kado-poster-image">
+                  <img
+                    src={item.poster_url || item.backdrop_url || "/placeholder.png"}
+                    alt={item.title}
+                    loading="lazy"
+                  />
+
+                  <div className="kado-poster-overlay">
+                    <div>
+                      <Play size={18} fill="currentColor" />
+                    </div>
+                  </div>
+
+                  {item.quality && (
+                    <small>{item.quality}</small>
+                  )}
+                </div>
+
+                <strong>{item.title}</strong>
+
+                <span>
+                  {item.release_year || "Movie"}
+                  {item.category ? ` • ${item.category}` : ""}
+                </span>
+              </a>
+            ))}
           </div>
         </section>
       )}
 
       {/* LIVE CHANNELS */}
       {channelItems.length > 0 && (
-        <section className="cinema-section">
-          <div className="section-heading">
+        <section className="kado-section">
+          <div className="kado-section-head">
             <div>
-              <span className="section-eyebrow live-eyebrow">
-                <span />
+              <span className="kado-live-label">
+                <i />
                 LIVE NOW
               </span>
               <h2>Live Channels</h2>
             </div>
 
-            <a href="/channels">
-              See All <ChevronRight size={15} />
-            </a>
+            <button onClick={() => window.location.href = "/channels"}>
+              See all <ChevronRight size={16} />
+            </button>
           </div>
 
-          <div className="cinema-rail">
+          <div className="kado-channel-rail">
             {channelItems.slice(0, 12).map((item) => (
-              <div className="cinema-card live-card" key={item.id}>
-                <a href={`/watch/channel/${item.id}`}>
-                  <div className="cinema-card-image">
-                    <img
-                      src={
-                        item.logo_url ||
-                        item.backdrop_url ||
-                        "/placeholder.png"
-                      }
-                      alt={item.name}
-                      loading="lazy"
-                    />
+              <a
+                key={item.id}
+                href={`/watch/channel/${item.id}`}
+                className="kado-channel-card"
+              >
+                <div className="kado-channel-image">
+                  <img
+                    src={
+                      item.logo_url ||
+                      item.backdrop_url ||
+                      "/placeholder.png"
+                    }
+                    alt={item.name}
+                    loading="lazy"
+                  />
 
-                    <div className="card-live">
-                      <span />
-                      LIVE
-                    </div>
-
-                    <div className="card-play">
-                      <Play fill="currentColor" size={18} />
-                    </div>
+                  <div className="kado-live-badge">
+                    <i />
+                    LIVE
                   </div>
 
-                  <div className="cinema-card-info">
-                    <strong>{item.name}</strong>
-                    <span>
-                      {item.category || "Live Channel"}
-                    </span>
+                  <div className="kado-channel-play">
+                    <Play size={18} fill="currentColor" />
                   </div>
-                </a>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+                </div>
 
-      {/* TRENDING MOVIES */}
-      {movieItems.length > 0 && (
-        <section className="cinema-section">
-          <div className="section-heading">
-            <div>
-              <span className="section-eyebrow">
-                TRENDING
-              </span>
-              <h2>Popular Movies</h2>
-            </div>
-
-            <a href="/movies">
-              See All <ChevronRight size={15} />
-            </a>
-          </div>
-
-          <div className="cinema-rail poster-rail">
-            {movieItems.slice(0, 12).map((item, index) => (
-              <div className="cinema-card poster-card" key={item.id}>
-                <a href={`/watch/movie/${item.id}`}>
-                  <div className="poster-number">
-                    {String(index + 1).padStart(2, "0")}
-                  </div>
-
-                  <div className="cinema-card-image">
-                    <img
-                      src={
-                        item.poster_url ||
-                        item.backdrop_url ||
-                        "/placeholder.png"
-                      }
-                      alt={item.title}
-                      loading="lazy"
-                    />
-
-                    <div className="card-play">
-                      <Play fill="currentColor" size={18} />
-                    </div>
-
-                    {item.quality && (
-                      <span className="quality-badge">
-                        {item.quality}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="cinema-card-info">
-                    <strong>{item.title}</strong>
-                    <span>
-                      {item.release_year || "Movie"}
-                      {item.category
-                        ? ` • ${item.category}`
-                        : ""}
-                    </span>
-                  </div>
-                </a>
-              </div>
+                <strong>{item.name}</strong>
+                <span>{item.category || "Live Channel"}</span>
+              </a>
             ))}
           </div>
         </section>
@@ -652,72 +532,70 @@ function HomePage({ session }) {
 
       {/* SERIES */}
       {seriesItems.length > 0 && (
-        <section className="cinema-section">
-          <div className="section-heading">
+        <section className="kado-section">
+          <div className="kado-section-head">
             <div>
-              <span className="section-eyebrow">
-                ORIGINALS & SERIES
-              </span>
-              <h2>Popular Series</h2>
+              <span>POPULAR SERIES</span>
+              <h2>Watch Your Favorites</h2>
             </div>
 
-            <a href="/series">
-              See All <ChevronRight size={15} />
-            </a>
+            <button onClick={() => window.location.href = "/series"}>
+              See all <ChevronRight size={16} />
+            </button>
           </div>
 
-          <div className="cinema-rail poster-rail">
+          <div className="kado-poster-rail">
             {seriesItems.slice(0, 12).map((item, index) => (
-              <div className="cinema-card poster-card" key={item.id}>
-                <a href={`/watch/series/${item.id}`}>
-                  <div className="poster-number">
-                    {String(index + 1).padStart(2, "0")}
-                  </div>
+              <a
+                key={item.id}
+                href={`/watch/series/${item.id}`}
+                className="kado-poster"
+              >
+                <div className="kado-rank">
+                  {String(index + 1).padStart(2, "0")}
+                </div>
 
-                  <div className="cinema-card-image">
-                    <img
-                      src={
-                        item.poster_url ||
-                        item.backdrop_url ||
-                        "/placeholder.png"
-                      }
-                      alt={item.title}
-                      loading="lazy"
-                    />
+                <div className="kado-poster-image">
+                  <img
+                    src={
+                      item.poster_url ||
+                      item.backdrop_url ||
+                      "/placeholder.png"
+                    }
+                    alt={item.title}
+                    loading="lazy"
+                  />
 
-                    <div className="card-play">
-                      <Play fill="currentColor" size={18} />
+                  <div className="kado-poster-overlay">
+                    <div>
+                      <Play size={18} fill="currentColor" />
                     </div>
                   </div>
+                </div>
 
-                  <div className="cinema-card-info">
-                    <strong>{item.title}</strong>
-                    <span>
-                      {item.release_year || "Series"}
-                    </span>
-                  </div>
-                </a>
-              </div>
+                <strong>{item.title}</strong>
+                <span>{item.release_year || "Series"}</span>
+              </a>
             ))}
           </div>
         </section>
       )}
 
-      {/* FINAL DISCOVER BANNER */}
-      <section className="discover-banner">
-        <div>
-          <span className="section-eyebrow">KADOTV</span>
-          <h2>Your entertainment. Your way.</h2>
-          <p>
-            Discover live TV, movies and series with a clean,
-            cinematic streaming experience.
-          </p>
-        </div>
+      {/* BOTTOM DISCOVERY */}
+      <section className="kado-discover">
+        <div className="kado-discover-glow" />
 
-        <a href="/search">
+        <span>EXPLORE KADOTV</span>
+        <h2>Find something you'll love.</h2>
+        <p>
+          Discover live channels, movies and series in one cinematic
+          streaming experience.
+        </p>
+
+        <button onClick={() => window.location.href = "/search"}>
           Start Exploring
           <ChevronRight size={17} />
-        </a>
+        </button>
       </section>
 
     </div>
@@ -730,22 +608,18 @@ function HomeHeroSlider({ items, index, setIndex }) {
 
   if (!items.length) {
     return (
-      <section className="home-hero cinematic-hero hero-fallback">
+      <div className="kado-hero-empty">
+        <div className="kado-hero-glow" />
 
-        <div className="hero-glow hero-glow-one"></div>
-        <div className="hero-glow hero-glow-two"></div>
-        <div className="hero-grid"></div>
-
-        <div className="hero-content">
-
-          <span className="hero-kicker">
-            <span className="live-dot"></span>
+        <div className="kado-hero-copy">
+          <span>
+            <i />
             KADOTV
           </span>
 
           <h1>
-            Your world of
-            <strong> entertainment.</strong>
+            Entertainment
+            <strong> without limits.</strong>
           </h1>
 
           <p>
@@ -753,39 +627,12 @@ function HomeHeroSlider({ items, index, setIndex }) {
             experience.
           </p>
 
-          <div className="hero-actions">
-
-            <button
-              className="primary-btn hero-watch-btn"
-              onClick={() => navigate("/channels")}
-            >
-              <Play size={17} fill="currentColor" />
-              Explore KadoTV
-            </button>
-
-            <button
-              className="hero-secondary-btn"
-              onClick={() => navigate("/movies")}
-            >
-              Browse Movies
-              <ChevronRight size={16} />
-            </button>
-
-          </div>
-        </div>
-
-        <div className="hero-floating-card">
-          <div className="hero-floating-icon">
+          <button onClick={() => navigate("/channels")}>
             <Play size={17} fill="currentColor" />
-          </div>
-
-          <div>
-            <b>Ready to watch</b>
-            <span>Discover something new</span>
-          </div>
+            Explore KadoTV
+          </button>
         </div>
-
-      </section>
+      </div>
     );
   }
 
@@ -799,7 +646,7 @@ function HomeHeroSlider({ items, index, setIndex }) {
 
   const description =
     item.description ||
-    "Discover your next favorite entertainment on KadoTV.";
+    "Stream your favorite entertainment on KadoTV.";
 
   const image =
     item.backdrop_url ||
@@ -811,39 +658,43 @@ function HomeHeroSlider({ items, index, setIndex }) {
     "";
 
   return (
-    <section
-      className="home-hero cinematic-hero hero-slide"
-      style={{
-        backgroundImage: `
-          linear-gradient(
-            90deg,
-            rgba(4,5,10,.98) 0%,
-            rgba(4,5,10,.86) 32%,
-            rgba(4,5,10,.42) 68%,
-            rgba(4,5,10,.78) 100%
-          ),
-          url("${image}")
-        `
-      }}
-    >
+    <div className="kado-hero-slide">
 
-      <div className="hero-slide-glow"></div>
+      <div
+        className="kado-hero-image"
+        style={{
+          backgroundImage: `
+            linear-gradient(
+              90deg,
+              rgba(4,5,10,.98) 0%,
+              rgba(4,5,10,.82) 32%,
+              rgba(4,5,10,.35) 68%,
+              rgba(4,5,10,.78) 100%
+            ),
+            linear-gradient(
+              0deg,
+              rgba(4,5,10,1) 0%,
+              transparent 55%
+            ),
+            url("${image}")
+          `
+        }}
+      />
 
-      <div className="hero-content" key={item.id || index}>
+      <div className="kado-hero-copy" key={item.id || index}>
 
-        <span className="hero-kicker">
-          <span className="live-dot"></span>
-          FEATURED ON KADOTV
+        <span className="kado-featured">
+          <i />
+          FEATURED
         </span>
 
         <h1>{title}</h1>
 
         <p>{description}</p>
 
-        <div className="hero-actions">
-
+        <div className="kado-hero-buttons">
           <button
-            className="primary-btn hero-watch-btn"
+            className="kado-watch"
             onClick={() => {
               if (item.id) {
                 navigate(`/watch/channel/${item.id}`);
@@ -857,49 +708,45 @@ function HomeHeroSlider({ items, index, setIndex }) {
           </button>
 
           <button
-            className="hero-secondary-btn"
+            className="kado-browse"
             onClick={() => navigate("/channels")}
           >
-            Browse Channels
+            Browse
             <ChevronRight size={16} />
           </button>
-
         </div>
       </div>
 
-      <div className="hero-bottom">
+      {items.length > 1 && (
+        <div className="kado-hero-navigation">
 
-        <div className="hero-dots">
+          <div className="kado-hero-dots">
+            {items.map((entry, i) => (
+              <button
+                key={entry.id || i}
+                className={i === index ? "active" : ""}
+                onClick={() => setIndex(i)}
+                aria-label={`Slide ${i + 1}`}
+              />
+            ))}
+          </div>
 
-          {items.map((entry, i) => (
-            <button
-              key={entry.id || i}
-              className={i === index ? "hero-dot active" : "hero-dot"}
-              onClick={() => setIndex(i)}
-              aria-label={`Slide ${i + 1}`}
-            />
-          ))}
+          <div className="kado-hero-counter">
+            <strong>
+              {String(index + 1).padStart(2, "0")}
+            </strong>
+            <span>/</span>
+            <span>
+              {String(items.length).padStart(2, "0")}
+            </span>
+          </div>
 
         </div>
+      )}
 
-        <div className="hero-counter">
-          <span>
-            {String(index + 1).padStart(2, "0")}
-          </span>
-
-          <i>/</i>
-
-          <span>
-            {String(items.length).padStart(2, "0")}
-          </span>
-        </div>
-
-      </div>
-
-    </section>
+    </div>
   );
 }
-
 
 
 function MobileBottomNav() {

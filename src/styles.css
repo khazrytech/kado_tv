@@ -3056,3 +3056,867 @@
   }
 }
 
+
+/* =========================================================
+   KADOTV MOBILE-FIRST CINEMATIC HOME
+   FINAL HOME REDESIGN
+   ========================================================= */
+
+.kado-home{
+  width:100%;
+  max-width:1500px;
+  margin:0 auto;
+  padding:0 0 90px;
+  overflow:hidden;
+}
+
+/* ================= HERO ================= */
+
+.kado-hero{
+  position:relative;
+  width:100%;
+  min-height:570px;
+  overflow:hidden;
+  background:#05050a;
+  border-radius:0 0 30px 30px;
+}
+
+.kado-hero-slide,
+.kado-hero-empty{
+  position:relative;
+  width:100%;
+  min-height:570px;
+  overflow:hidden;
+}
+
+.kado-hero-image{
+  position:absolute;
+  inset:0;
+  background-position:center;
+  background-size:cover;
+  background-repeat:no-repeat;
+  transform:scale(1.01);
+  animation:kadoHeroZoom 8s ease-out both;
+}
+
+@keyframes kadoHeroZoom{
+  from{transform:scale(1.08)}
+  to{transform:scale(1.01)}
+}
+
+.kado-hero-slide::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background:
+    radial-gradient(
+      circle at 75% 30%,
+      rgba(0,229,255,.06),
+      transparent 28%
+    );
+}
+
+.kado-hero-copy{
+  position:absolute;
+  z-index:5;
+  left:clamp(24px,5vw,72px);
+  bottom:92px;
+  width:min(590px,72%);
+  animation:kadoHeroText .55s ease both;
+}
+
+@keyframes kadoHeroText{
+  from{
+    opacity:0;
+    transform:translateY(18px);
+  }
+  to{
+    opacity:1;
+    transform:translateY(0);
+  }
+}
+
+.kado-featured,
+.kado-hero-empty .kado-hero-copy > span{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-bottom:15px;
+  color:#00e5ff;
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:.18em;
+}
+
+.kado-featured i,
+.kado-hero-empty .kado-hero-copy > span i{
+  width:7px;
+  height:7px;
+  border-radius:50%;
+  background:#ff2d75;
+  box-shadow:0 0 14px #ff2d75;
+}
+
+.kado-hero-copy h1{
+  margin:0;
+  max-width:650px;
+  color:#fff;
+  font-size:clamp(38px,5.4vw,72px);
+  line-height:.96;
+  letter-spacing:-.055em;
+  text-shadow:0 8px 35px rgba(0,0,0,.55);
+}
+
+.kado-hero-copy p{
+  max-width:510px;
+  margin:18px 0 24px;
+  color:rgba(255,255,255,.66);
+  font-size:14px;
+  line-height:1.65;
+}
+
+.kado-hero-buttons{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.kado-hero-buttons button,
+.kado-hero-empty button{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  border:0;
+  border-radius:12px;
+  padding:13px 19px;
+  font-size:12px;
+  font-weight:900;
+  cursor:pointer;
+  transition:.25s ease;
+}
+
+.kado-watch{
+  color:#05050a;
+  background:#fff;
+}
+
+.kado-watch:hover{
+  background:#00e5ff;
+  transform:translateY(-2px);
+  box-shadow:0 12px 30px rgba(0,229,255,.2);
+}
+
+.kado-browse{
+  color:#fff;
+  background:rgba(255,255,255,.09);
+  border:1px solid rgba(255,255,255,.13)!important;
+  backdrop-filter:blur(15px);
+  -webkit-backdrop-filter:blur(15px);
+}
+
+.kado-browse:hover{
+  background:rgba(255,255,255,.16);
+}
+
+.kado-hero-navigation{
+  position:absolute;
+  z-index:8;
+  left:clamp(24px,5vw,72px);
+  right:30px;
+  bottom:30px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+
+.kado-hero-dots{
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+
+.kado-hero-dots button{
+  width:22px;
+  height:4px;
+  padding:0;
+  border:0;
+  border-radius:20px;
+  background:rgba(255,255,255,.25);
+  cursor:pointer;
+  transition:.3s ease;
+}
+
+.kado-hero-dots button.active{
+  width:42px;
+  background:#00e5ff;
+  box-shadow:0 0 12px rgba(0,229,255,.45);
+}
+
+.kado-hero-counter{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  color:rgba(255,255,255,.35);
+  font-size:10px;
+  font-weight:700;
+}
+
+.kado-hero-counter strong{
+  color:#fff;
+  font-size:13px;
+}
+
+.kado-hero-empty{
+  background:
+    radial-gradient(
+      circle at 70% 25%,
+      rgba(168,85,247,.18),
+      transparent 32%
+    ),
+    radial-gradient(
+      circle at 25% 70%,
+      rgba(0,229,255,.12),
+      transparent 30%
+    ),
+    #07070d;
+}
+
+.kado-hero-glow{
+  position:absolute;
+  width:450px;
+  height:450px;
+  right:-150px;
+  top:-150px;
+  border-radius:50%;
+  background:rgba(168,85,247,.12);
+  filter:blur(70px);
+}
+
+.kado-hero-empty .kado-hero-copy{
+  bottom:90px;
+}
+
+/* ================= SECTIONS ================= */
+
+.kado-section{
+  padding:38px clamp(18px,4vw,50px) 5px;
+}
+
+.kado-section-head{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:20px;
+  margin-bottom:18px;
+}
+
+.kado-section-head span{
+  display:block;
+  margin-bottom:6px;
+  color:#00e5ff;
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:.18em;
+}
+
+.kado-section-head h2{
+  margin:0;
+  color:#fff;
+  font-size:clamp(20px,2.5vw,29px);
+  line-height:1;
+  letter-spacing:-.035em;
+}
+
+.kado-section-head button{
+  display:flex;
+  align-items:center;
+  gap:3px;
+  padding:0;
+  border:0;
+  color:rgba(255,255,255,.45);
+  background:none;
+  font-size:10px;
+  font-weight:800;
+  white-space:nowrap;
+  cursor:pointer;
+}
+
+.kado-section-head button:hover{
+  color:#00e5ff;
+}
+
+.kado-horizontal,
+.kado-channel-rail,
+.kado-poster-rail{
+  display:flex;
+  gap:14px;
+  overflow-x:auto;
+  padding:3px 2px 14px;
+  scrollbar-width:none;
+  scroll-snap-type:x mandatory;
+}
+
+.kado-horizontal::-webkit-scrollbar,
+.kado-channel-rail::-webkit-scrollbar,
+.kado-poster-rail::-webkit-scrollbar{
+  display:none;
+}
+
+/* ================= CONTINUE ================= */
+
+.kado-continue-card{
+  flex:0 0 235px;
+  color:#fff;
+  text-decoration:none;
+  scroll-snap-align:start;
+}
+
+.kado-continue-image{
+  position:relative;
+  height:132px;
+  overflow:hidden;
+  border-radius:14px;
+  background:#111119;
+  border:1px solid rgba(255,255,255,.07);
+}
+
+.kado-continue-image img{
+  width:100%;
+  height:100%;
+  display:block;
+  object-fit:cover;
+  transition:.4s ease;
+}
+
+.kado-continue-card:hover img{
+  transform:scale(1.06);
+}
+
+.kado-progress{
+  position:absolute;
+  left:9px;
+  right:9px;
+  bottom:8px;
+  height:3px;
+  border-radius:99px;
+  overflow:hidden;
+  background:rgba(255,255,255,.25);
+}
+
+.kado-progress span{
+  display:block;
+  width:42%;
+  height:100%;
+  background:#00e5ff;
+  box-shadow:0 0 10px #00e5ff;
+}
+
+.kado-continue-play{
+  position:absolute;
+  left:50%;
+  top:50%;
+  width:43px;
+  height:43px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  transform:translate(-50%,-50%) scale(.8);
+  opacity:0;
+  border-radius:50%;
+  color:#05050a;
+  background:#fff;
+  transition:.25s ease;
+}
+
+.kado-continue-card:hover .kado-continue-play{
+  opacity:1;
+  transform:translate(-50%,-50%) scale(1);
+}
+
+.kado-continue-card strong,
+.kado-continue-card > span{
+  display:block;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.kado-continue-card strong{
+  margin-top:9px;
+  font-size:11px;
+}
+
+.kado-continue-card > span{
+  margin-top:4px;
+  color:rgba(255,255,255,.38);
+  font-size:9px;
+}
+
+/* ================= POSTERS ================= */
+
+.kado-poster{
+  position:relative;
+  flex:0 0 158px;
+  color:#fff;
+  text-decoration:none;
+  scroll-snap-align:start;
+}
+
+.kado-poster-image{
+  position:relative;
+  aspect-ratio:2/3;
+  overflow:hidden;
+  border-radius:13px;
+  background:#111119;
+  border:1px solid rgba(255,255,255,.07);
+}
+
+.kado-poster-image img{
+  width:100%;
+  height:100%;
+  display:block;
+  object-fit:cover;
+  transition:.4s ease;
+}
+
+.kado-poster:hover .kado-poster-image img{
+  transform:scale(1.07);
+}
+
+.kado-rank{
+  position:absolute;
+  z-index:5;
+  left:-1px;
+  bottom:38px;
+  color:#fff;
+  font-size:38px;
+  line-height:1;
+  font-weight:1000;
+  text-shadow:0 4px 15px #000;
+  pointer-events:none;
+}
+
+.kado-poster-image small{
+  position:absolute;
+  top:8px;
+  right:8px;
+  padding:4px 6px;
+  border-radius:5px;
+  color:#fff;
+  background:rgba(0,0,0,.7);
+  font-size:7px;
+  font-weight:900;
+}
+
+.kado-poster-overlay{
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:rgba(0,0,0,.25);
+  opacity:0;
+  transition:.25s ease;
+}
+
+.kado-poster-overlay > div{
+  width:44px;
+  height:44px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:50%;
+  color:#05050a;
+  background:#fff;
+  transform:scale(.8);
+  transition:.25s ease;
+}
+
+.kado-poster:hover .kado-poster-overlay{
+  opacity:1;
+}
+
+.kado-poster:hover .kado-poster-overlay > div{
+  transform:scale(1);
+}
+
+.kado-poster strong,
+.kado-poster > span{
+  display:block;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.kado-poster strong{
+  margin-top:9px;
+  font-size:11px;
+}
+
+.kado-poster > span{
+  margin-top:4px;
+  color:rgba(255,255,255,.38);
+  font-size:9px;
+}
+
+/* ================= LIVE CHANNELS ================= */
+
+.kado-live-label{
+  display:flex!important;
+  align-items:center;
+  gap:7px;
+}
+
+.kado-live-label i{
+  width:6px;
+  height:6px;
+  margin:0;
+  border-radius:50%;
+  background:#ff2d75;
+  box-shadow:0 0 11px #ff2d75;
+}
+
+.kado-channel-card{
+  flex:0 0 205px;
+  color:#fff;
+  text-decoration:none;
+  scroll-snap-align:start;
+}
+
+.kado-channel-image{
+  position:relative;
+  height:125px;
+  overflow:hidden;
+  border-radius:14px;
+  background:#111119;
+  border:1px solid rgba(255,255,255,.07);
+}
+
+.kado-channel-image img{
+  width:100%;
+  height:100%;
+  display:block;
+  object-fit:cover;
+  transition:.4s ease;
+}
+
+.kado-channel-card:hover img{
+  transform:scale(1.06);
+}
+
+.kado-live-badge{
+  position:absolute;
+  left:9px;
+  top:9px;
+  display:flex;
+  align-items:center;
+  gap:5px;
+  padding:5px 7px;
+  border-radius:6px;
+  color:#fff;
+  background:rgba(225,35,70,.92);
+  font-size:8px;
+  font-weight:900;
+}
+
+.kado-live-badge i{
+  width:5px;
+  height:5px;
+  border-radius:50%;
+  background:#fff;
+}
+
+.kado-channel-play{
+  position:absolute;
+  left:50%;
+  top:50%;
+  width:43px;
+  height:43px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  transform:translate(-50%,-50%) scale(.8);
+  opacity:0;
+  border-radius:50%;
+  color:#05050a;
+  background:#fff;
+  transition:.25s ease;
+}
+
+.kado-channel-card:hover .kado-channel-play{
+  opacity:1;
+  transform:translate(-50%,-50%) scale(1);
+}
+
+.kado-channel-card strong,
+.kado-channel-card > span{
+  display:block;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.kado-channel-card strong{
+  margin-top:9px;
+  font-size:11px;
+}
+
+.kado-channel-card > span{
+  margin-top:4px;
+  color:rgba(255,255,255,.38);
+  font-size:9px;
+}
+
+/* ================= DISCOVER ================= */
+
+.kado-discover{
+  position:relative;
+  margin:55px clamp(18px,4vw,50px) 10px;
+  padding:45px 30px;
+  overflow:hidden;
+  text-align:center;
+  border:1px solid rgba(0,229,255,.1);
+  border-radius:24px;
+  background:
+    radial-gradient(
+      circle at 20% 50%,
+      rgba(0,229,255,.1),
+      transparent 30%
+    ),
+    radial-gradient(
+      circle at 80% 30%,
+      rgba(168,85,247,.11),
+      transparent 30%
+    ),
+    rgba(255,255,255,.025);
+}
+
+.kado-discover-glow{
+  position:absolute;
+  left:50%;
+  top:50%;
+  width:200px;
+  height:200px;
+  transform:translate(-50%,-50%);
+  border-radius:50%;
+  background:rgba(0,229,255,.06);
+  filter:blur(50px);
+}
+
+.kado-discover > *:not(.kado-discover-glow){
+  position:relative;
+  z-index:2;
+}
+
+.kado-discover > span{
+  color:#00e5ff;
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:.18em;
+}
+
+.kado-discover h2{
+  margin:8px 0 0;
+  color:#fff;
+  font-size:clamp(24px,4vw,38px);
+  letter-spacing:-.045em;
+}
+
+.kado-discover p{
+  max-width:500px;
+  margin:10px auto 22px;
+  color:rgba(255,255,255,.43);
+  font-size:11px;
+  line-height:1.6;
+}
+
+.kado-discover button{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  padding:12px 18px;
+  border:0;
+  border-radius:11px;
+  color:#05050a;
+  background:#00e5ff;
+  font-size:10px;
+  font-weight:900;
+  cursor:pointer;
+  transition:.25s ease;
+}
+
+.kado-discover button:hover{
+  transform:translateY(-2px);
+  box-shadow:0 10px 25px rgba(0,229,255,.2);
+}
+
+/* ================= MOBILE ================= */
+
+@media(max-width:700px){
+
+  .kado-home{
+    padding-bottom:85px;
+  }
+
+  .kado-hero{
+    min-height:485px;
+    margin:0 -12px;
+    border-radius:0 0 22px 22px;
+  }
+
+  .kado-hero-slide,
+  .kado-hero-empty{
+    min-height:485px;
+  }
+
+  .kado-hero-image{
+    background-position:center;
+  }
+
+  .kado-hero-copy{
+    left:20px;
+    right:20px;
+    bottom:62px;
+    width:auto;
+  }
+
+  .kado-featured{
+    margin-bottom:10px;
+    font-size:8px;
+  }
+
+  .kado-hero-copy h1{
+    font-size:36px;
+    line-height:.98;
+  }
+
+  .kado-hero-copy p{
+    margin:11px 0 17px;
+    font-size:11px;
+    line-height:1.55;
+  }
+
+  .kado-hero-buttons button{
+    padding:10px 13px;
+    border-radius:10px;
+    font-size:10px;
+  }
+
+  .kado-hero-navigation{
+    left:20px;
+    right:20px;
+    bottom:20px;
+  }
+
+  .kado-hero-counter{
+    font-size:8px;
+  }
+
+  .kado-hero-counter strong{
+    font-size:11px;
+  }
+
+  .kado-section{
+    padding:27px 4px 3px;
+  }
+
+  .kado-section-head{
+    margin-bottom:13px;
+  }
+
+  .kado-section-head span{
+    font-size:8px;
+  }
+
+  .kado-section-head h2{
+    font-size:20px;
+  }
+
+  .kado-section-head button{
+    font-size:9px;
+  }
+
+  .kado-horizontal,
+  .kado-channel-rail,
+  .kado-poster-rail{
+    gap:10px;
+  }
+
+  .kado-continue-card{
+    flex-basis:210px;
+  }
+
+  .kado-continue-image{
+    height:118px;
+  }
+
+  .kado-channel-card{
+    flex-basis:175px;
+  }
+
+  .kado-channel-image{
+    height:108px;
+  }
+
+  .kado-poster{
+    flex-basis:120px;
+  }
+
+  .kado-rank{
+    bottom:34px;
+    font-size:30px;
+  }
+
+  .kado-poster strong,
+  .kado-channel-card strong,
+  .kado-continue-card strong{
+    font-size:10px;
+  }
+
+  .kado-poster > span,
+  .kado-channel-card > span,
+  .kado-continue-card > span{
+    font-size:8px;
+  }
+
+  .kado-discover{
+    margin:40px 4px 5px;
+    padding:32px 18px;
+    border-radius:20px;
+  }
+
+  .kado-discover h2{
+    font-size:25px;
+  }
+
+  .kado-discover p{
+    font-size:10px;
+  }
+}
+
+@media(max-width:380px){
+
+  .kado-hero{
+    min-height:455px;
+  }
+
+  .kado-hero-slide,
+  .kado-hero-empty{
+    min-height:455px;
+  }
+
+  .kado-hero-copy h1{
+    font-size:32px;
+  }
+
+  .kado-poster{
+    flex-basis:112px;
+  }
+
+  .kado-channel-card{
+    flex-basis:165px;
+  }
+}
+
