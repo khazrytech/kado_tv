@@ -14,9 +14,6 @@ import {
   X, 
   Radio, 
   Sparkles,
-  Shield,
-  Trash2,
-  Edit,
   Heart
 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
@@ -29,53 +26,57 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 export default function App() {
   const [activeTab, setActiveTab] = useState('home'); // home, discover, live, myspace
   const [channels, setChannels] = useState([]);
+  const [categories, setCategories] = useState(['All']);
+  const [selectedCategory, setSelectedCategory] = useState('All');
   const [loading, setLoading] = useState(true);
   const [selectedChannel, setSelectedChannel] = useState(null);
   const [myList, setMyList] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [heroIndex, setHeroIndex] = useState(0);
 
-  // Continue Watching Mock Data
-  const continueWatching = [
-    {
-      id: 'cw-1',
-      title: 'THE NEURAL NET',
-      episode: 'S2:E4',
-      progress: 45,
-      image: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=600&auto=format&fit=crop'
-    },
-    {
-      id: 'cw-2',
-      title: 'QUANTUM DRIFT',
-      episode: 'S1:E8',
-      progress: 70,
-      image: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=600&auto=format&fit=crop'
-    }
-  ];
-
-  // Fetch Channels kutoka Supabase
+  // Fetch Channels na Categories kutoka Supabase
   useEffect(() => {
-    fetchChannels();
+    fetchData();
   }, []);
 
-  const fetchChannels = async () => {
+  const fetchData = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase.from('channels').select('*');
-      if (error) throw error;
-      setChannels(data || []);
+      const { data: chData, error: chErr } = await supabase.from('channels').select('*');
+      if (chErr) throw chErr;
+
+      const realChannels = chData || [];
+      setChannels(realChannels);
+
+      // Chukua Category zote zilizopo kwenye Database bila kurudia
+      const uniqueCats = ['All', ...new Set(realChannels.map(c => c.category).filter(Boolean))];
+      setCategories(uniqueCats);
     } catch (err) {
-      console.error('Error fetching channels:', err);
+      console.error('Error fetching Supabase data:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  // Channel inayoonyeshwa kwenye Hero Banner
-  const featuredChannel = channels.find(c => c.is_featured) || channels[0] || {
-    name: 'QUANTUM HORIZON 2088',
-    category: 'Sci-Fi • Cyberpunk',
-    description: 'The Future is Now. Surrender to the digital realm of hyper-tech dominance.',
-    logo_url: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=800&auto=format&fit=crop'
+  // Filter channels zenye is_featured = true, au tumia zote kama hazipo
+  const featuredChannels = channels.filter(c => c.is_featured).length > 0 
+    ? channels.filter(c => c.is_featured) 
+    : channels;
+
+  // Auto Animation Carousel ya Hero Section (kila sekunde 5)
+  useEffect(() => {
+    if (featuredChannels.length <= 1) return;
+    const interval = setInterval(() => {
+      setHeroIndex((prevIndex) => (prevIndex + 1) % featuredChannels.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [featuredChannels.length]);
+
+  const currentHero = featuredChannels[heroIndex] || {
+    name: 'KadoTV Live',
+    category: 'Local & Live TV',
+    description: 'Tazama chaneli za ndani na za kimataifa mubashara.',
+    logo_url: ''
   };
 
   const toggleMyList = (channelId) => {
@@ -86,10 +87,13 @@ export default function App() {
     }
   };
 
-  const filteredChannels = channels.filter(c => 
-    c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (c.category && c.category.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  // Filtered channels kulingana na Category au Search Query
+  const filteredChannels = channels.filter(c => {
+    const matchesCategory = selectedCategory === 'All' || (c.category && c.category.toLowerCase() === selectedCategory.toLowerCase());
+    const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (c.category && c.category.toLowerCase().includes(searchQuery.toLowerCase()));
+    return matchesCategory && matchesSearch;
+  });
 
   return (
     <div className="min-h-screen bg-[#080b11] text-slate-100 pb-24 font-sans selection:bg-cyan-500 selection:text-black">
@@ -101,7 +105,7 @@ export default function App() {
             K
           </div>
           <span className="font-extrabold text-xl tracking-tight bg-gradient-to-r from-white via-cyan-200 to-cyan-400 bg-clip-text text-transparent">
-            Tech TV
+            KadoTV
           </span>
         </div>
 
@@ -122,7 +126,7 @@ export default function App() {
         </div>
       </header>
 
-      {/* VIDEO PLAYER MODAL */}
+      {/* VIDEO PLAYER MODAL (Inafungua Stream Link Halisi ya Channel) */}
       {selectedChannel && (
         <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-2xl flex flex-col items-center justify-center p-4">
           <button 
@@ -142,136 +146,121 @@ export default function App() {
           </div>
           <div className="mt-4 text-center max-w-xl">
             <h2 className="text-2xl font-bold text-white">{selectedChannel.name}</h2>
-            <p className="text-sm text-slate-400 mt-1">{selectedChannel.description || 'Live Tanzanian Stream'}</p>
+            <p className="text-sm text-slate-400 mt-1">{selectedChannel.description || 'Matangazo Mubashara'}</p>
           </div>
         </div>
       )}
 
-      {/* MAIN CONTAINER */}
+      {/* MAIN CONTENT CONTAINER */}
       <main className="max-w-md mx-auto px-4 pt-3">
 
         {/* ==================== TAB 1: HOME ==================== */}
         {activeTab === 'home' && (
           <div className="space-y-6">
 
-            {/* HERO BANNER */}
-            <div className="relative w-full h-[360px] rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-slate-900 group">
-              <img 
-                src={featuredChannel.logo_url || "https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=800&auto=format&fit=crop"} 
-                alt="Featured" 
-                className="w-full h-full object-cover object-center filter brightness-90 group-hover:scale-105 transition-transform duration-700"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#080b11] via-[#080b11]/50 to-transparent" />
-              <div className="absolute inset-0 bg-gradient-to-r from-[#080b11] via-transparent to-transparent" />
+            {/* HERO ANIMATED BANNER (Inabadilika Kiotomatiki na Animation) */}
+            {loading ? (
+              <div className="h-[320px] rounded-3xl bg-slate-900/60 animate-pulse flex items-center justify-center text-xs text-slate-500">
+                Inapakia Featured Channels...
+              </div>
+            ) : (
+              <div key={currentHero.id || heroIndex} className="fade-in-hero relative w-full h-[360px] rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-slate-950 group">
+                
+                {/* Background Backdrop Glow & Logo */}
+                <div className="absolute inset-0 bg-gradient-to-b from-slate-900/40 via-slate-950/80 to-[#080b11] flex items-center justify-center p-8">
+                  {currentHero.logo_url && (
+                    <img 
+                      src={currentHero.logo_url} 
+                      alt={currentHero.name} 
+                      className="max-h-48 object-contain filter drop-shadow-[0_10px_20px_rgba(0,0,0,0.8)] group-hover:scale-105 transition-transform duration-700"
+                    />
+                  )}
+                </div>
+                
+                <div className="absolute inset-0 bg-gradient-to-t from-[#080b11] via-[#080b11]/60 to-transparent" />
 
-              <div className="absolute bottom-0 inset-x-0 p-5 flex flex-col items-start z-10">
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/20 border border-cyan-400/40 backdrop-blur-md mb-2">
-                  <Sparkles size={12} className="text-cyan-400" />
-                  <span className="text-[10px] font-bold text-cyan-300 uppercase tracking-widest">
-                    4K ULTRA HD • DOLBY ATMOS
-                  </span>
+                {/* Dots Indicator za Animation za Hero */}
+                <div className="absolute top-4 right-4 flex items-center gap-1.5 z-20">
+                  {featuredChannels.map((_, idx) => (
+                    <span 
+                      key={idx} 
+                      onClick={() => setHeroIndex(idx)}
+                      className={`h-1.5 rounded-full transition-all cursor-pointer ${idx === heroIndex ? 'w-5 bg-cyan-400' : 'w-1.5 bg-white/30'}`} 
+                    />
+                  ))}
                 </div>
 
-                <h1 className="text-2xl font-black text-white tracking-tight leading-tight uppercase drop-shadow-md">
-                  {featuredChannel.name}
-                </h1>
+                {/* Maelezo na Vitufe vya Hero */}
+                <div className="absolute bottom-0 inset-x-0 p-5 flex flex-col items-start z-10">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/20 border border-cyan-400/40 backdrop-blur-md mb-2">
+                    <Sparkles size={12} className="text-cyan-400" />
+                    <span className="text-[10px] font-bold text-cyan-300 uppercase tracking-widest">
+                      {currentHero.category || 'FEATURED LIVE TV'}
+                    </span>
+                  </div>
 
-                <p className="text-xs text-slate-300 line-clamp-2 mt-1 mb-4 font-normal">
-                  {featuredChannel.description || 'Sci-Fi • Cyberpunk | The Future is Now. Surrender to the digital realm.'}
-                </p>
+                  <h1 className="text-2xl font-black text-white tracking-tight leading-tight uppercase drop-shadow-md">
+                    {currentHero.name}
+                  </h1>
 
-                <div className="flex items-center gap-3 w-full">
-                  <button 
-                    onClick={() => setSelectedChannel(featuredChannel)}
-                    className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-black font-extrabold text-sm transition-all shadow-lg shadow-cyan-500/25 active:scale-95"
-                  >
-                    <Play size={16} className="fill-black" />
-                    Watch Now
-                  </button>
+                  <p className="text-xs text-slate-300 line-clamp-2 mt-1 mb-4 font-normal">
+                    {currentHero.description || 'Matangazo mubashara na vipindi vya hali ya juu.'}
+                  </p>
 
-                  <button 
-                    onClick={() => toggleMyList(featuredChannel.id || 'feat')}
-                    className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-sm backdrop-blur-md border border-white/10 transition-all active:scale-95"
-                  >
-                    {myList.includes(featuredChannel.id || 'feat') ? <Check size={16} className="text-cyan-400" /> : <Plus size={16} />}
-                    My List
-                  </button>
+                  <div className="flex items-center gap-3 w-full">
+                    <button 
+                      onClick={() => setSelectedChannel(currentHero)}
+                      className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-black font-extrabold text-sm transition-all shadow-lg shadow-cyan-500/25 active:scale-95"
+                    >
+                      <Play size={16} className="fill-black" />
+                      Watch Live
+                    </button>
+
+                    <button 
+                      onClick={() => toggleMyList(currentHero.id)}
+                      className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-sm backdrop-blur-md border border-white/10 transition-all active:scale-95"
+                    >
+                      {myList.includes(currentHero.id) ? <Check size={16} className="text-cyan-400" /> : <Plus size={16} />}
+                      My List
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
-            {/* CONTINUE WATCHING */}
+            {/* SEHEMU YA CHANNELS ZAKO HALISI (FEATURED CHANNELS GRID) */}
             <div>
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-sm font-bold text-white tracking-wide uppercase">Continue Watching</h2>
-                <button className="text-xs font-semibold text-cyan-400 hover:underline flex items-center gap-0.5">
+                <h2 className="text-sm font-bold text-white tracking-wide uppercase">All Live Channels</h2>
+                <button onClick={() => setActiveTab('live')} className="text-xs font-semibold text-cyan-400 hover:underline flex items-center gap-0.5">
                   See all <ChevronRight size={14} />
                 </button>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                {continueWatching.map((item) => (
-                  <div key={item.id} className="glass-card rounded-2xl overflow-hidden group cursor-pointer border border-white/5 hover:border-cyan-500/40 transition-all">
-                    <div className="relative aspect-video w-full overflow-hidden bg-slate-900">
-                      <img src={item.image} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                      <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <div className="w-9 h-9 rounded-full bg-cyan-400 text-black flex items-center justify-center shadow-lg">
-                          <Play size={16} className="fill-black ml-0.5" />
-                        </div>
-                      </div>
-                      <div className="absolute bottom-0 inset-x-0 h-1 bg-white/20">
-                        <div className="h-full bg-cyan-400" style={{ width: `${item.progress}%` }} />
-                      </div>
-                    </div>
-                    <div className="p-2.5">
-                      <h3 className="text-xs font-bold text-white truncate">{item.title}</h3>
-                      <p className="text-[10px] text-slate-400 mt-0.5">{item.episode} • {item.progress}%</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* TRENDING CHANNELS */}
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-sm font-bold text-white tracking-wide uppercase">Trending Tech Originals</h2>
               </div>
 
               {loading ? (
                 <div className="text-center py-8 text-xs text-slate-500">Inapakia channels kutoka Supabase...</div>
               ) : (
-                <div className="space-y-3">
-                  {channels.slice(0, 3).map((channel, index) => (
+                <div className="grid grid-cols-2 gap-3">
+                  {channels.map((channel) => (
                     <div 
                       key={channel.id} 
                       onClick={() => setSelectedChannel(channel)}
-                      className="glass-card rounded-2xl p-3 flex items-center gap-4 cursor-pointer hover:border-cyan-500/50 transition-all group relative overflow-hidden"
+                      className="glass-card rounded-2xl overflow-hidden group cursor-pointer border border-white/5 hover:border-cyan-500/50 transition-all"
                     >
-                      <span className="text-3xl font-black italic text-cyan-400/40 group-hover:text-cyan-400 transition-colors w-6 text-center">
-                        {index + 1}
-                      </span>
-
-                      <div className="w-16 h-12 bg-slate-950/80 rounded-xl overflow-hidden border border-white/10 flex items-center justify-center shrink-0">
+                      <div className="aspect-video w-full bg-slate-950 flex items-center justify-center relative p-2">
                         <img 
                           src={channel.logo_url} 
                           alt={channel.name} 
                           className="channel-logo-fix"
                           onError={(e) => { e.target.style.display = 'none'; }}
                         />
+                        <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[9px] font-black bg-red-600 text-white uppercase tracking-wider">
+                          LIVE
+                        </span>
                       </div>
-
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-sm text-white truncate group-hover:text-cyan-300 transition-colors">
-                          {channel.name}
-                        </h3>
-                        <p className="text-xs text-slate-400 truncate mt-0.5">
-                          {channel.description || channel.category || 'Local Channel'}
-                        </p>
-                      </div>
-
-                      <div className="w-8 h-8 rounded-full bg-cyan-500/10 text-cyan-400 flex items-center justify-center shrink-0 group-hover:bg-cyan-400 group-hover:text-black transition-all">
-                        <Play size={14} className="fill-current" />
+                      <div className="p-2.5">
+                        <h3 className="font-bold text-xs text-white truncate group-hover:text-cyan-300 transition-colors">{channel.name}</h3>
+                        <p className="text-[10px] text-slate-400 truncate mt-0.5">{channel.category || 'Local'}</p>
                       </div>
                     </div>
                   ))}
@@ -282,25 +271,53 @@ export default function App() {
           </div>
         )}
 
-        {/* ==================== TAB 2: DISCOVER ==================== */}
+        {/* ==================== TAB 2: DISCOVER (SEARCH & CATEGORIES) ==================== */}
         {activeTab === 'discover' && (
           <div className="space-y-4">
             <div className="relative">
               <Search className="absolute left-3.5 top-3 text-slate-400" size={18} />
               <input 
                 type="text" 
-                placeholder="Search channels, movies, genres..." 
+                placeholder="Tafuta channel, habari, au category..." 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full bg-slate-900/90 border border-white/10 rounded-2xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
               />
             </div>
 
+            {/* Category Filter Pills */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+              {categories.map((cat, idx) => (
+                <button 
+                  key={idx} 
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${selectedCategory === cat ? 'bg-cyan-400 text-black shadow-lg shadow-cyan-400/20' : 'bg-slate-900 text-slate-300 border border-white/10 hover:bg-slate-800'}`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+
+            {/* Search Results */}
             <div className="grid grid-cols-2 gap-3">
-              {['Sci-Fi', 'Cyberpunk', 'Robotics & AI', 'Space Odyssey', 'Local News', 'Sports'].map((genre, idx) => (
-                <div key={idx} className="h-20 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 border border-white/10 p-3 flex items-end justify-between cursor-pointer hover:border-cyan-400 transition-all">
-                  <span className="font-bold text-sm text-white">{genre}</span>
-                  <Compass className="text-cyan-400/40" size={20} />
+              {filteredChannels.map((channel) => (
+                <div 
+                  key={channel.id} 
+                  onClick={() => setSelectedChannel(channel)}
+                  className="glass-card rounded-2xl overflow-hidden cursor-pointer group border border-white/5 hover:border-cyan-500/50 transition-all"
+                >
+                  <div className="aspect-video w-full bg-slate-950 flex items-center justify-center relative p-2">
+                    <img 
+                      src={channel.logo_url} 
+                      alt={channel.name} 
+                      className="channel-logo-fix"
+                      onError={(e) => { e.target.style.display = 'none'; }}
+                    />
+                  </div>
+                  <div className="p-2.5">
+                    <h3 className="font-bold text-xs text-white truncate">{channel.name}</h3>
+                    <p className="text-[10px] text-slate-400 truncate mt-0.5">{channel.category || 'Local'}</p>
+                  </div>
                 </div>
               ))}
             </div>
@@ -310,9 +327,13 @@ export default function App() {
         {/* ==================== TAB 3: LIVE & SPORTS ==================== */}
         {activeTab === 'live' && (
           <div className="space-y-4">
-            <div className="flex items-center gap-2 overflow-x-auto pb-1">
-              {['All Live', 'Local TV', 'News', 'Sports'].map((cat, i) => (
-                <button key={i} className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap ${i === 0 ? 'bg-cyan-400 text-black' : 'bg-slate-900 text-slate-300 border border-white/10'}`}>
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+              {categories.map((cat, i) => (
+                <button 
+                  key={i} 
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${selectedCategory === cat ? 'bg-cyan-400 text-black' : 'bg-slate-900 text-slate-300 border border-white/10'}`}
+                >
                   {cat}
                 </button>
               ))}
@@ -355,22 +376,22 @@ export default function App() {
                   U
                 </div>
               </div>
-              <h2 className="font-bold text-lg text-white">Tech TV Admin</h2>
-              <p className="text-xs text-slate-400 mt-1">Supabase ID: fqixivwmtggpuftrnxxq</p>
+              <h2 className="font-bold text-lg text-white">KadoTV Dashboard</h2>
+              <p className="text-xs text-slate-400 mt-1">Supabase Status: Connected ({channels.length} Channels Loaded)</p>
             </div>
 
             <button 
-              onClick={fetchChannels}
-              className="w-full py-3 rounded-2xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 font-bold text-xs flex items-center justify-center gap-2"
+              onClick={fetchData}
+              className="w-full py-3 rounded-2xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 font-bold text-xs flex items-center justify-center gap-2 hover:bg-cyan-500/20 transition-all"
             >
-              <Radio size={16} /> Refresh Channels Database
+              <Radio size={16} /> Reload Supabase Database
             </button>
           </div>
         )}
 
       </main>
 
-      {/* 5. BOTTOM NAVIGATION BAR */}
+      {/* 5. BOTTOM NAVIGATION BAR (Inafanya Kazi na Inabadilisha Tab) */}
       <nav className="fixed bottom-0 inset-x-0 z-50 glass-nav px-6 py-2.5 flex items-center justify-between max-w-md mx-auto">
         
         <button 
@@ -394,7 +415,7 @@ export default function App() {
           className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'live' ? 'text-cyan-400 scale-105' : 'text-slate-500 hover:text-slate-300'}`}
         >
           <Tv size={20} className={activeTab === 'live' ? 'drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]' : ''} />
-          <span className="text-[10px] font-bold">Live & Sports</span>
+          <span className="text-[10px] font-bold">Live TV</span>
         </button>
 
         <button 
