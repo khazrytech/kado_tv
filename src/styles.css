@@ -1616,3 +1616,251 @@
   }
 
 }
+
+/* =========================================================
+   KADOTV UI V2 — MOBILE STREAMING EXPERIENCE
+   ========================================================= */
+
+.home-modern {
+  min-height: 100vh;
+  padding-bottom: 96px;
+}
+
+.home-modern .section {
+  position: relative;
+  margin-top: 28px;
+}
+
+.home-modern .section h2 {
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: -0.4px;
+}
+
+.home-modern .card-row {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.home-modern .card-row::-webkit-scrollbar {
+  display: none;
+}
+
+/* Cinematic hero */
+
+.home-modern .hero,
+.home-modern .home-hero,
+.home-modern .hero-slider {
+  position: relative;
+  overflow: hidden;
+  border-radius: 24px;
+}
+
+.home-modern .hero img,
+.home-modern .home-hero img,
+.home-modern .hero-slider img {
+  object-fit: cover;
+}
+
+.home-modern .hero::after,
+.home-modern .home-hero::after,
+.home-modern .hero-slider::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(3, 4, 10, .96) 0%,
+      rgba(3, 4, 10, .70) 35%,
+      rgba(3, 4, 10, .15) 72%,
+      rgba(3, 4, 10, .60) 100%
+    ),
+    linear-gradient(
+      0deg,
+      rgba(3, 4, 10, .95) 0%,
+      transparent 55%
+    );
+}
+
+/* Horizontal content rails */
+
+.home-modern .card-row {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 4px 2px 10px;
+  scroll-snap-type: x proximity;
+}
+
+.home-modern .card-row > * {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+}
+
+/* Category chips */
+
+.home-modern .quick-categories {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 8px 2px 5px;
+  scrollbar-width: none;
+}
+
+.home-modern .quick-categories::-webkit-scrollbar {
+  display: none;
+}
+
+/* Cards */
+
+.home-modern .content-card {
+  transition:
+    transform .25s ease,
+    opacity .25s ease,
+    box-shadow .25s ease;
+}
+
+.home-modern .content-card:hover {
+  transform: translateY(-5px);
+}
+
+/* Mobile bottom navigation */
+
+.mobile-bottom-nav {
+  display: none;
+}
+
+@media (max-width: 768px) {
+
+  body {
+    overflow-x: hidden;
+  }
+
+  .home-modern {
+    padding:
+      0 0
+      calc(88px + env(safe-area-inset-bottom));
+  }
+
+  .home-modern .hero,
+  .home-modern .home-hero,
+  .home-modern .hero-slider {
+    min-height: 430px;
+    border-radius: 0 0 26px 26px;
+    margin-left: -1px;
+    margin-right: -1px;
+  }
+
+  .home-modern .hero::after,
+  .home-modern .home-hero::after,
+  .home-modern .hero-slider::after {
+    background:
+      linear-gradient(
+        0deg,
+        rgba(3, 4, 10, 1) 0%,
+        rgba(3, 4, 10, .78) 27%,
+        rgba(3, 4, 10, .12) 68%,
+        rgba(3, 4, 10, .35) 100%
+      );
+  }
+
+  .home-modern .section {
+    margin-top: 24px;
+    padding-left: 14px;
+  }
+
+  .home-modern .section h2 {
+    font-size: 19px;
+    margin-bottom: 11px;
+  }
+
+  .home-modern .card-row {
+    gap: 11px;
+    padding-right: 14px;
+  }
+
+  .home-modern .card-row > * {
+    width: 142px;
+    min-width: 142px;
+  }
+
+  .home-modern .quick-categories {
+    padding: 13px 14px 2px;
+    gap: 8px;
+  }
+
+  .home-modern .quick-categories > * {
+    flex: 0 0 auto;
+  }
+
+  .mobile-bottom-nav {
+    position: fixed;
+    z-index: 9999;
+    left: 10px;
+    right: 10px;
+    bottom: calc(10px + env(safe-area-inset-bottom));
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    min-height: 64px;
+    padding: 7px 5px;
+    border: 1px solid rgba(255,255,255,.10);
+    border-radius: 22px;
+    background: rgba(10, 11, 20, .88);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    box-shadow:
+      0 15px 45px rgba(0,0,0,.45),
+      inset 0 1px 0 rgba(255,255,255,.06);
+  }
+
+  .mobile-nav-item {
+    min-width: 58px;
+    min-height: 52px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    color: rgba(255,255,255,.52);
+    text-decoration: none;
+    border-radius: 16px;
+    transition: all .2s ease;
+  }
+
+  .mobile-nav-item span {
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  .mobile-nav-item.active {
+    color: #fff;
+    background: rgba(255,255,255,.08);
+  }
+
+  .mobile-nav-item.active svg {
+    filter: drop-shadow(0 0 8px rgba(0,229,255,.55));
+  }
+}
+
+/* Very small Android screens */
+
+@media (max-width: 380px) {
+  .home-modern .card-row > * {
+    width: 132px;
+    min-width: 132px;
+  }
+
+  .mobile-bottom-nav {
+    left: 7px;
+    right: 7px;
+  }
+
+  .mobile-nav-item {
+    min-width: 53px;
+  }
+}
+

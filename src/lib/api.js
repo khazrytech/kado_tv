@@ -31,12 +31,34 @@ export async function getFeaturedChannels() {
   return data || [];
 }
 
+export async function getFeaturedMovies() {
+  const { data, error } = await supabase
+    .from("movies")
+    .select("*")
+    .eq("is_featured", true)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+}
+
+export async function getFeaturedSeries() {
+  const { data, error } = await supabase
+    .from("series")
+    .select("*")
+    .eq("is_featured", true)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+}
+
 export async function getMovies() {
   const { data, error } = await supabase
     .from("movies")
     .select("*")
-    .eq("is_active", true)
     .order("created_at", { ascending: false });
+
   if (error) throw error;
   return data || [];
 }
@@ -45,8 +67,8 @@ export async function getSeries() {
   const { data, error } = await supabase
     .from("series")
     .select("*")
-    .eq("is_active", true)
     .order("created_at", { ascending: false });
+
   if (error) throw error;
   return data || [];
 }

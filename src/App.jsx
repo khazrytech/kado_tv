@@ -606,6 +606,41 @@ function HomeHeroSlider({ items, index, setIndex }) {
 }
 
 
+
+function MobileBottomNav() {
+  const location = useLocation();
+
+  const items = [
+    { to: "/", label: "Home", icon: Home },
+    { to: "/discover", label: "Discover", icon: Search },
+    { to: "/channels", label: "Live", icon: Radio },
+    { to: "/library", label: "Library", icon: Bookmark },
+    { to: "/profile", label: "Profile", icon: User }
+  ];
+
+  return (
+    <nav className="mobile-bottom-nav">
+      {items.map(({ to, label, icon: Icon }) => {
+        const active =
+          to === "/"
+            ? location.pathname === "/"
+            : location.pathname.startsWith(to);
+
+        return (
+          <Link
+            key={to}
+            to={to}
+            className={active ? "mobile-nav-item active" : "mobile-nav-item"}
+          >
+            <Icon size={20} strokeWidth={active ? 2.5 : 2} />
+            <span>{label}</span>
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
 function QuickCategories() {
   const navigate = useNavigate();
 
@@ -1498,7 +1533,54 @@ function EditModal({
   close,
   save
 }) {
-  const [form, setForm] = useState(row);
+  const [form, setForm] = useState(() => {
+    if (row && Object.keys(row).length > 0) {
+      return row;
+    }
+
+    if (kind === "channels") {
+      return {
+        name: "",
+        description: "",
+        logo_url: "",
+        backdrop_url: "",
+        stream_url: "",
+        category: "",
+        is_active: true,
+        is_featured: true,
+        sort_order: 0
+      };
+    }
+
+    if (kind === "movies") {
+      return {
+        title: "",
+        description: "",
+        poster_url: "",
+        backdrop_url: "",
+        stream_url: "",
+        category: "",
+        release_year: new Date().getFullYear(),
+        duration_minutes: 0,
+        is_featured: true,
+        is_trending: true
+      };
+    }
+
+    if (kind === "series") {
+      return {
+        title: "",
+        description: "",
+        poster_url: "",
+        backdrop_url: "",
+        category: "",
+        release_year: new Date().getFullYear(),
+        is_featured: true
+      };
+    }
+
+    return {};
+  });
 
   const fields =
     kind === "channels"
@@ -1509,6 +1591,7 @@ function EditModal({
           "backdrop_url",
           "stream_url",
           "category",
+          "is_active",
           "is_featured",
           "sort_order"
         ]
