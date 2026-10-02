@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Bell, Bookmark, Film, Home, LogOut, Menu, Play, Search, Settings,
   Shield, Tv, User, X, Pencil, Trash2, Ban, CheckCircle2, ChevronRight,
@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import {
-  getProfile, getChannels, getMovies, getSeries, getFeaturedChannels,
+  getProfile, getChannels, getMovies, getSeries, getFeaturedChannels, getCategories,
   toggleFavorite, isFavorite, saveWatch,
   adminList, adminUpsert, adminDelete, adminUpdateUser
 } from "./lib/api";
@@ -603,6 +603,83 @@ function HomePage({ session }) {
 }
 
 
+
+function HomeCategoryRail() {
+  const navigate = useNavigate();
+
+  const categories = [
+    {
+      label: "Live TV",
+      icon: Radio,
+      path: "/channels?category=live-tv"
+    },
+    {
+      label: "Sports",
+      icon: Trophy,
+      path: "/channels?category=sports"
+    },
+    {
+      label: "Local TV",
+      icon: Tv,
+      path: "/channels?category=local-tv"
+    },
+    {
+      label: "News",
+      icon: Layers3,
+      path: "/channels?category=news"
+    },
+    {
+      label: "Entertainment",
+      icon: Sparkles,
+      path: "/channels?category=entertainment"
+    },
+    {
+      label: "Movies",
+      icon: Film,
+      path: "/movies"
+    },
+    {
+      label: "Series",
+      icon: Clapperboard,
+      path: "/series"
+    },
+    {
+      label: "Kids",
+      icon: Baby,
+      path: "/channels?category=kids"
+    }
+  ];
+
+  return (
+    <section className="kado-category-section">
+      <div className="kado-category-heading">
+        <div>
+          <span>EXPLORE</span>
+          <h2>What do you want to watch?</h2>
+        </div>
+      </div>
+
+      <div className="kado-category-rail">
+        {categories.map(({ label, icon: Icon, path }) => (
+          <button
+            key={label}
+            className="kado-category-chip"
+            onClick={() => navigate(path)}
+          >
+            <span className="kado-category-icon">
+              <Icon size={17} />
+            </span>
+
+            <span>{label}</span>
+
+            <ChevronRight size={14} />
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function HomeHeroSlider({ items, index, setIndex }) {
   const navigate = useNavigate();
 
@@ -1064,13 +1141,48 @@ function ContentCard({ item, type, session }) {
 
 function ChannelsPage({ session }) {
   const { data, loading } = useData(getChannels);
+  const categories = useData(getCategories);
+  const [params] = useSearchParams();
+
+  const category = params.get("category");
+
+  const filtered = useMemo(() => {
+    if (!category || category === "live-tv") {
+      return data;
+    }
+
+    const found = categories.data.find(
+      item =>
+        item.slug === category ||
+        item.name?.toLowerCase() === category.toLowerCase()
+    );
+
+    if (!found) return [];
+
+    return data.filter(
+      channel =>
+        channel.category_id === found.id ||
+        channel.category?.toLowerCase() === found.name.toLowerCase()
+    );
+  }, [data, categories.data, category]);
+
+  const title =
+    category && category !== "live-tv"
+      ? (
+          categories.data.find(
+            item =>
+              item.slug === category ||
+              item.name?.toLowerCase() === category.toLowerCase()
+          )?.name || "Live Channels"
+        )
+      : "Live Channels";
 
   return (
     <LibraryPage
-      title="Live Channels"
+      title={title}
       subtitle="Your live streaming channels"
-      items={data}
-      loading={loading}
+      items={filtered}
+      loading={loading || categories.loading}
       type="channel"
       session={session}
     />
@@ -1675,9 +1787,11 @@ function EditModal({
   close,
   save
 }) {
+  const categories = useData(getCategories);
+
   const [form, setForm] = useState(() => {
     if (row && Object.keys(row).length > 0) {
-      return row;
+      return { ...row };
     }
 
     if (kind === "channels") {
@@ -1688,6 +1802,7 @@ function EditModal({
         backdrop_url: "",
         stream_url: "",
         category: "",
+        category_id: "",
         is_active: true,
         is_featured: true,
         sort_order: 0
@@ -1724,6 +1839,10 @@ function EditModal({
     return {};
   });
 
+  const channelCategories = categories.data.filter(item =>
+    ["tv", "sports", "general"].includes(item.type)
+  );
+
   const fields =
     kind === "channels"
       ? [
@@ -1732,7 +1851,6 @@ function EditModal({
           "logo_url",
           "backdrop_url",
           "stream_url",
-          "category",
           "is_active",
           "is_featured",
           "sort_order"
@@ -1768,6 +1886,37 @@ function EditModal({
     }));
   }
 
+  function selectChannelCategory(id) {
+    const selected = channelCategories.find(
+      item => item.id === id
+    );
+
+    setForm(current => ({
+      ...current,
+      category_id: id,
+      category: selected?.name || ""
+    }));
+  }
+
+  async function handleSave() {
+    const payload = { ...form };
+
+    if (kind === "channels") {
+      if (!payload.category_id) {
+        alert("Please select a channel category.");
+        return;
+      }
+
+      const selected = channelCategories.find(
+        item => item.id === payload.category_id
+      );
+
+      payload.category = selected?.name || payload.category || null;
+    }
+
+    await save(payload);
+  }
+
   return (
     <div className="modal-backdrop">
       <div className="modal">
@@ -1785,40 +1934,80 @@ function EditModal({
           </button>
         </div>
 
-        {fields.map(f => (
-          <label
-            className="field"
-            key={f}
-          >
-            {f}
+        {kind === "channels" && (
+          <label className="field">
+            Category
 
-            <input
-              type={
-                typeof row[f] === "boolean"
-                  ? "checkbox"
-                  : "text"
-              }
-              checked={
-                typeof form[f] === "boolean"
-                  ? form[f]
-                  : undefined
-              }
+            <select
               value={
-                typeof form[f] === "boolean"
-                  ? ""
-                  : form[f] ?? ""
+                form.category_id ||
+                channelCategories.find(
+                  item =>
+                    item.name?.toLowerCase() ===
+                    form.category?.toLowerCase()
+                )?.id ||
+                ""
               }
               onChange={e =>
-                set(
-                  f,
-                  typeof row[f] === "boolean"
-                    ? e.target.checked
-                    : e.target.value
-                )
+                selectChannelCategory(e.target.value)
               }
-            />
+              disabled={categories.loading}
+            >
+              <option value="">
+                {categories.loading
+                  ? "Loading categories..."
+                  : "Select category"}
+              </option>
+
+              {channelCategories.map(category => (
+                <option
+                  key={category.id}
+                  value={category.id}
+                >
+                  {category.name}
+                </option>
+              ))}
+            </select>
           </label>
-        ))}
+        )}
+
+        {fields.map(f => {
+          const booleanField =
+            f === "is_active" ||
+            f === "is_featured" ||
+            f === "is_trending";
+
+          return (
+            <label
+              className="field"
+              key={f}
+            >
+              {f}
+
+              <input
+                type={booleanField ? "checkbox" : "text"}
+                checked={
+                  booleanField
+                    ? Boolean(form[f])
+                    : undefined
+                }
+                value={
+                  booleanField
+                    ? undefined
+                    : form[f] ?? ""
+                }
+                onChange={e =>
+                  set(
+                    f,
+                    booleanField
+                      ? e.target.checked
+                      : e.target.value
+                  )
+                }
+              />
+            </label>
+          );
+        })}
 
         <div className="modal-actions">
           <button
@@ -1830,7 +2019,7 @@ function EditModal({
 
           <button
             className="primary-btn"
-            onClick={() => save(form)}
+            onClick={handleSave}
           >
             Save
           </button>
