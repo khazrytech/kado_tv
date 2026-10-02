@@ -347,84 +347,379 @@ function HomePage({ session }) {
   const [slide, setSlide] = useState(0);
 
   const featuredItems = featured.data || [];
+  const channelItems = channels.data || [];
+  const movieItems = movies.data || [];
+  const seriesItems = series.data || [];
 
   useEffect(() => {
     if (featuredItems.length < 2) return;
 
     const timer = setInterval(() => {
       setSlide((current) => (current + 1) % featuredItems.length);
-    }, 5500);
+    }, 6000);
 
     return () => clearInterval(timer);
   }, [featuredItems.length]);
 
   useEffect(() => {
-    if (slide >= featuredItems.length && featuredItems.length > 0) {
+    if (
+      featuredItems.length > 0 &&
+      slide >= featuredItems.length
+    ) {
       setSlide(0);
     }
   }, [slide, featuredItems.length]);
 
   return (
-    <div className="home home-modern">
+    <div className="home home-cinematic">
 
-      <HomeHeroSlider
-        items={featuredItems}
-        index={slide}
-        setIndex={setSlide}
-      />
-
-      <QuickCategories />
-
-      {channels.data.length > 0 && (
-        <Section title="Live Channels" action="/channels">
-          <CardRow
-            items={channels.data.slice(0, 10)}
-            type="channel"
-            session={session}
+      {/* CINEMATIC HERO */}
+      {featuredItems.length > 0 && (
+        <section className="cinema-hero">
+          <HomeHeroSlider
+            items={featuredItems}
+            index={slide}
+            setIndex={setSlide}
           />
-        </Section>
-      )}
 
-      {movies.data.length > 0 && (
-        <Section title="Trending Movies" action="/movies">
-          <CardRow
-            items={movies.data.slice(0, 10)}
-            type="movie"
-            session={session}
-          />
-        </Section>
-      )}
+          <div className="hero-bottom-fade" />
 
-      {series.data.length > 0 && (
-        <Section title="Popular Series" action="/series">
-          <CardRow
-            items={series.data.slice(0, 10)}
-            type="series"
-            session={session}
-          />
-        </Section>
-      )}
+          <div className="hero-content-overlay">
+            <span className="hero-kicker">
+              <span className="hero-live-dot" />
+              FEATURED ON KADOTV
+            </span>
 
-      {(channels.loading || movies.loading || series.loading) && (
-        <div className="home-loading">
-          <span className="loading-dot"></span>
-          <span>Loading your entertainment...</span>
-        </div>
-      )}
+            <h1>
+              {featuredItems[slide]?.name ||
+                featuredItems[slide]?.title ||
+                "Watch Something Amazing"}
+            </h1>
 
-      {!channels.loading &&
-        !movies.loading &&
-        !series.loading &&
-        channels.data.length === 0 &&
-        movies.data.length === 0 &&
-        series.data.length === 0 && (
-          <div className="home-empty-note">
-            <Sparkles size={17} />
-            <span>Your KadoTV library is ready for content.</span>
+            <p>
+              {featuredItems[slide]?.description ||
+                "Stream live channels, movies and series in one premium entertainment experience."}
+            </p>
+
+            <div className="hero-actions">
+              <a
+                className="hero-play-button"
+                href={
+                  featuredItems[slide]?.id
+                    ? `/watch/channel/${featuredItems[slide].id}`
+                    : "/channels"
+                }
+              >
+                <Play fill="currentColor" size={18} />
+                Watch Now
+              </a>
+
+              <a
+                className="hero-more-button"
+                href="/channels"
+              >
+                Explore Channels
+              </a>
+            </div>
           </div>
-        )}
 
-      <HomeFooter />
+          <div className="hero-dots">
+            {featuredItems.map((item, index) => (
+              <button
+                key={item.id || index}
+                className={index === slide ? "active" : ""}
+                onClick={() => setSlide(index)}
+                aria-label={`Slide ${index + 1}`}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* WELCOME */}
+      <section className="welcome-strip">
+        <div>
+          <span className="section-eyebrow">WELCOME BACK</span>
+          <h2>Everything you love, in one place.</h2>
+        </div>
+
+        <a href="/search" className="discover-button">
+          Discover
+          <ChevronRight size={16} />
+        </a>
+      </section>
+
+      {/* QUICK CATEGORIES */}
+      <section className="cinema-section category-section">
+        <div className="section-heading">
+          <div>
+            <span className="section-eyebrow">BROWSE</span>
+            <h2>Explore KadoTV</h2>
+          </div>
+        </div>
+
+        <div className="cinema-categories">
+          <a href="/channels" className="category-card category-live">
+            <div className="category-icon">
+              <Radio size={23} />
+            </div>
+            <div>
+              <strong>Live TV</strong>
+              <span>{channelItems.length} Channels</span>
+            </div>
+            <ChevronRight size={17} />
+          </a>
+
+          <a href="/movies" className="category-card">
+            <div className="category-icon">
+              <Film size={23} />
+            </div>
+            <div>
+              <strong>Movies</strong>
+              <span>{movieItems.length} Titles</span>
+            </div>
+            <ChevronRight size={17} />
+          </a>
+
+          <a href="/series" className="category-card">
+            <div className="category-icon">
+              <Tv size={23} />
+            </div>
+            <div>
+              <strong>Series</strong>
+              <span>{seriesItems.length} Shows</span>
+            </div>
+            <ChevronRight size={17} />
+          </a>
+
+          <a href="/search" className="category-card">
+            <div className="category-icon">
+              <Sparkles size={23} />
+            </div>
+            <div>
+              <strong>Discover</strong>
+              <span>Find something new</span>
+            </div>
+            <ChevronRight size={17} />
+          </a>
+        </div>
+      </section>
+
+      {/* CONTINUE WATCHING */}
+      {session?.user?.id && (
+        <section className="cinema-section">
+          <div className="section-heading">
+            <div>
+              <span className="section-eyebrow">YOUR LIBRARY</span>
+              <h2>Continue Watching</h2>
+            </div>
+
+            <a href="/profile">
+              View All <ChevronRight size={15} />
+            </a>
+          </div>
+
+          <div className="empty-continue">
+            <div className="empty-continue-icon">
+              <Play size={20} />
+            </div>
+            <div>
+              <strong>Your watch history will appear here</strong>
+              <span>
+                Start watching something and continue right where you stopped.
+              </span>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* LIVE CHANNELS */}
+      {channelItems.length > 0 && (
+        <section className="cinema-section">
+          <div className="section-heading">
+            <div>
+              <span className="section-eyebrow live-eyebrow">
+                <span />
+                LIVE NOW
+              </span>
+              <h2>Live Channels</h2>
+            </div>
+
+            <a href="/channels">
+              See All <ChevronRight size={15} />
+            </a>
+          </div>
+
+          <div className="cinema-rail">
+            {channelItems.slice(0, 12).map((item) => (
+              <div className="cinema-card live-card" key={item.id}>
+                <a href={`/watch/channel/${item.id}`}>
+                  <div className="cinema-card-image">
+                    <img
+                      src={
+                        item.logo_url ||
+                        item.backdrop_url ||
+                        "/placeholder.png"
+                      }
+                      alt={item.name}
+                      loading="lazy"
+                    />
+
+                    <div className="card-live">
+                      <span />
+                      LIVE
+                    </div>
+
+                    <div className="card-play">
+                      <Play fill="currentColor" size={18} />
+                    </div>
+                  </div>
+
+                  <div className="cinema-card-info">
+                    <strong>{item.name}</strong>
+                    <span>
+                      {item.category || "Live Channel"}
+                    </span>
+                  </div>
+                </a>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* TRENDING MOVIES */}
+      {movieItems.length > 0 && (
+        <section className="cinema-section">
+          <div className="section-heading">
+            <div>
+              <span className="section-eyebrow">
+                TRENDING
+              </span>
+              <h2>Popular Movies</h2>
+            </div>
+
+            <a href="/movies">
+              See All <ChevronRight size={15} />
+            </a>
+          </div>
+
+          <div className="cinema-rail poster-rail">
+            {movieItems.slice(0, 12).map((item, index) => (
+              <div className="cinema-card poster-card" key={item.id}>
+                <a href={`/watch/movie/${item.id}`}>
+                  <div className="poster-number">
+                    {String(index + 1).padStart(2, "0")}
+                  </div>
+
+                  <div className="cinema-card-image">
+                    <img
+                      src={
+                        item.poster_url ||
+                        item.backdrop_url ||
+                        "/placeholder.png"
+                      }
+                      alt={item.title}
+                      loading="lazy"
+                    />
+
+                    <div className="card-play">
+                      <Play fill="currentColor" size={18} />
+                    </div>
+
+                    {item.quality && (
+                      <span className="quality-badge">
+                        {item.quality}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="cinema-card-info">
+                    <strong>{item.title}</strong>
+                    <span>
+                      {item.release_year || "Movie"}
+                      {item.category
+                        ? ` • ${item.category}`
+                        : ""}
+                    </span>
+                  </div>
+                </a>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* SERIES */}
+      {seriesItems.length > 0 && (
+        <section className="cinema-section">
+          <div className="section-heading">
+            <div>
+              <span className="section-eyebrow">
+                ORIGINALS & SERIES
+              </span>
+              <h2>Popular Series</h2>
+            </div>
+
+            <a href="/series">
+              See All <ChevronRight size={15} />
+            </a>
+          </div>
+
+          <div className="cinema-rail poster-rail">
+            {seriesItems.slice(0, 12).map((item, index) => (
+              <div className="cinema-card poster-card" key={item.id}>
+                <a href={`/watch/series/${item.id}`}>
+                  <div className="poster-number">
+                    {String(index + 1).padStart(2, "0")}
+                  </div>
+
+                  <div className="cinema-card-image">
+                    <img
+                      src={
+                        item.poster_url ||
+                        item.backdrop_url ||
+                        "/placeholder.png"
+                      }
+                      alt={item.title}
+                      loading="lazy"
+                    />
+
+                    <div className="card-play">
+                      <Play fill="currentColor" size={18} />
+                    </div>
+                  </div>
+
+                  <div className="cinema-card-info">
+                    <strong>{item.title}</strong>
+                    <span>
+                      {item.release_year || "Series"}
+                    </span>
+                  </div>
+                </a>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* FINAL DISCOVER BANNER */}
+      <section className="discover-banner">
+        <div>
+          <span className="section-eyebrow">KADOTV</span>
+          <h2>Your entertainment. Your way.</h2>
+          <p>
+            Discover live TV, movies and series with a clean,
+            cinematic streaming experience.
+          </p>
+        </div>
+
+        <a href="/search">
+          Start Exploring
+          <ChevronRight size={17} />
+        </a>
+      </section>
+
     </div>
   );
 }
