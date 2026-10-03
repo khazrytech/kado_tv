@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Home, Compass, Tv, User, Play, Pause, 
+  Home, Tv, User, Play, Pause, 
   Cast, X, Radio, Volume2, Trophy, Tv2, ListTree, Bell
 } from 'lucide-react';
 
@@ -126,7 +126,6 @@ export default function App() {
       });
       const data = await res.json();
       if (Array.isArray(data) && data.length > 0) {
-        // Tumia data kutoka Supabase kama zipo
         const validChannels = data.filter(c => c.stream_url && !c.stream_url.includes('playlist.m3u8'));
         if (validChannels.length > 0) {
           setChannels(validChannels);
@@ -292,7 +291,7 @@ export default function App() {
           <div className="space-y-6 pt-2">
             <div className="bg-gradient-to-br from-cyan-500/10 to-indigo-500/10 border border-cyan-500/30 rounded-3xl p-5 shadow-xl">
               <h2 className="text-base font-black text-white flex items-center gap-2">
-                <ListTree className="text-cyan-400" size={20} /> IPTV Channels Hub
+                <ListTree className="text-cyan-400" size={20} /> Live TV Hub
               </h2>
               <p className="text-xs text-slate-300 mt-1">Orodha kamili ya chaneli zote za TV na Michezo zilizopo kwenye mfumo.</p>
             </div>
@@ -341,17 +340,6 @@ export default function App() {
           </div>
         )}
 
-        {/* DISCOVER TAB */}
-        {activeTab === 'discover' && (
-          <div className="space-y-4 pt-4 text-center">
-            <div className="bg-slate-900/80 rounded-3xl p-6 border border-white/10">
-              <Compass className="mx-auto text-cyan-400 mb-2" size={32} />
-              <h2 className="font-bold text-sm text-white">Gundua Zaidi</h2>
-              <p className="text-xs text-slate-400 mt-1">Maudhui zaidi yanakuja hivi karibuni.</p>
-            </div>
-          </div>
-        )}
-
         {/* MYSPACE TAB */}
         {activeTab === 'myspace' && (
           <div className="space-y-4 pt-4">
@@ -366,12 +354,11 @@ export default function App() {
         )}
       </main>
 
-      {/* BOTTOM NAVIGATION */}
-      <nav className="fixed bottom-0 inset-x-0 z-50 bg-[#06090e]/95 backdrop-blur-xl border-t border-white/10 px-6 py-2.5 flex items-center justify-between max-w-md mx-auto">
+      {/* BOTTOM NAVIGATION (VITEVITU VITATU TU: HOME, LIVE TV, MY SPACE) */}
+      <nav className="fixed bottom-0 inset-x-0 z-50 bg-[#06090e]/95 backdrop-blur-xl border-t border-white/10 px-8 py-2.5 flex items-center justify-between max-w-md mx-auto">
         {[
           { id: 'home', label: 'Home', icon: Home },
           { id: 'iptv', label: 'Live TV', icon: Tv },
-          { id: 'discover', label: 'Discover', icon: Compass },
           { id: 'myspace', label: 'My Space', icon: User }
         ].map(tab => {
           const Icon = tab.icon;
