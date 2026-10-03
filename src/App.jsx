@@ -4,6 +4,16 @@ import {
   Cast, X, Radio, Volume2, Trophy, Tv2, ListTree, Bell
 } from 'lucide-react';
 
+// KATI YA MWANZO ZINAZOWEKA MUONEKANO WAKO HARAKA BILA KUSUBIRI
+const DEFAULT_CHANNELS = [
+  { id: '1', name: 'Azam Sports 1 HD', category: 'Sports', stream_url: 'https://goliveafrica.media:9998/live/625965017ed73/index.m3u8', is_featured: true },
+  { id: '2', name: 'SuperSport Football', category: 'Sports', stream_url: 'https://goliveafrica.media:9998/live/625965017ed76/index.m3u8', is_featured: false },
+  { id: '3', name: 'Dodoma TV', category: 'Local', stream_url: 'https://edge1.my-live-stream.com/tbc1/index.m3u8', is_featured: false },
+  { id: '4', name: 'ITV Tanzania', category: 'Local', stream_url: 'https://edge2.my-live-stream.com/itv/index.m3u8', is_featured: false },
+  { id: '5', name: 'Clouds TV', category: 'Entertainment', stream_url: 'https://edge1.my-live-stream.com/cloudstv/index.m3u8', is_featured: false },
+  { id: '6', name: 'Wasafi TV', category: 'Entertainment', stream_url: 'https://edge2.my-live-stream.com/wasafi/index.m3u8', is_featured: false }
+];
+
 // COMPONENT YA AUTO-SCROLL KWA KILA CATEGORY (KUTOKA KULIA KUJA KUSHOTO)
 function CategoryRow({ categoryTitle, channels, onSelectChannel, playingChannelId }) {
   const scrollRef = useRef(null);
@@ -84,8 +94,8 @@ function CategoryRow({ categoryTitle, channels, onSelectChannel, playingChannelI
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('home'); 
-  const [channels, setChannels] = useState([]);
-  const [playingChannel, setPlayingChannel] = useState(null);
+  const [channels, setChannels] = useState(DEFAULT_CHANNELS);
+  const [playingChannel, setPlayingChannel] = useState(DEFAULT_CHANNELS[0]);
 
   const [isPlaying, setIsPlaying] = useState(true);
   const [isMuted, setIsMuted] = useState(false);
@@ -94,7 +104,7 @@ export default function App() {
   const videoRef = useRef(null);
   const hlsRef = useRef(null);
 
-  // Load HLS.js & Fetch Real-Time Supabase Channels
+  // Load HLS.js & Fetch Supabase in Background Real-Time
   useEffect(() => {
     if (!document.getElementById('hls-script')) {
       const script = document.createElement('script');
@@ -115,14 +125,10 @@ export default function App() {
       });
       const data = await res.json();
       if (Array.isArray(data) && data.length > 0) {
-        setChannels(data);
-        if (!playingChannel) {
-          const featured = data.find(c => c.is_featured) || data[0];
-          setPlayingChannel(featured);
-        }
+        setChannels(data); // Inasasisha real-time bila kuathiri muonekano
       }
     } catch (err) {
-      console.log('Hitilafu katika kupata data za Supabase.');
+      console.log('Kutumia default channels.');
     }
   };
 
@@ -255,30 +261,23 @@ export default function App() {
           </div>
         )}
 
-        {/* HOME TAB - REAL-TIME KUTOKA SUPABASE NA AUTO-SCROLL */}
+        {/* HOME TAB - NA AUTO-SCROLL KWA KILA KATEGORI */}
         {activeTab === 'home' && (
           <div className="space-y-2">
-            {channels.length === 0 ? (
-              <div className="space-y-6 animate-pulse">
-                <div className="h-44 bg-slate-900/40 rounded-3xl border border-white/5" />
-                <div className="h-44 bg-slate-900/40 rounded-3xl border border-white/5" />
-              </div>
-            ) : (
-              uniqueCategories.map((cat, idx) => {
-                const catChannels = channels.filter(c => (c.category || 'Uncategorized') === cat);
-                if (catChannels.length === 0) return null;
+            {uniqueCategories.map((cat, idx) => {
+              const catChannels = channels.filter(c => (c.category || 'Uncategorized') === cat);
+              if (catChannels.length === 0) return null;
 
-                return (
-                  <CategoryRow 
-                    key={idx}
-                    categoryTitle={cat}
-                    channels={catChannels}
-                    onSelectChannel={handlePlayChannel}
-                    playingChannelId={playingChannel?.id}
-                  />
-                );
-              })
-            )}
+              return (
+                <CategoryRow 
+                  key={idx}
+                  categoryTitle={cat}
+                  channels={catChannels}
+                  onSelectChannel={handlePlayChannel}
+                  playingChannelId={playingChannel?.id}
+                />
+              );
+            })}
           </div>
         )}
 
@@ -289,7 +288,7 @@ export default function App() {
               <h2 className="text-base font-black text-white flex items-center gap-2">
                 <ListTree className="text-cyan-400" size={20} /> Live TV Hub
               </h2>
-              <p className="text-xs text-slate-300 mt-1">Orodha ya chaneli zote za real-time kutoka kwenye database.</p>
+              <p className="text-xs text-slate-300 mt-1">Orodha kamili ya chaneli zote za TV na Michezo.</p>
             </div>
 
             {uniqueCategories.map((cat, idx) => {
