@@ -87,7 +87,6 @@ export default function App() {
   const [channels, setChannels] = useState([]);
   const [playingChannel, setPlayingChannel] = useState(null);
 
-  // Player States
   const [isPlaying, setIsPlaying] = useState(true);
   const [isMuted, setIsMuted] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -95,7 +94,7 @@ export default function App() {
   const videoRef = useRef(null);
   const hlsRef = useRef(null);
 
-  // Load HLS.js & Fetch Supabase Channels
+  // Load HLS.js & Fetch Real-Time Supabase Channels
   useEffect(() => {
     if (!document.getElementById('hls-script')) {
       const script = document.createElement('script');
@@ -256,14 +255,13 @@ export default function App() {
           </div>
         )}
 
-        {/* HOME TAB - AUTO SCROLL KWA KILA KATEGORI */}
+        {/* HOME TAB - REAL-TIME KUTOKA SUPABASE NA AUTO-SCROLL */}
         {activeTab === 'home' && (
           <div className="space-y-2">
             {channels.length === 0 ? (
-              <div className="text-center py-12 bg-slate-900/50 rounded-3xl border border-white/5 p-6">
-                <Tv2 className="mx-auto text-cyan-400 mb-2" size={32} />
-                <h3 className="text-sm font-bold text-white">Inapakia Chaneli kutoka Supabase...</h3>
-                <button onClick={fetchSupabaseChannels} className="mt-4 px-4 py-2 bg-cyan-500 text-black rounded-xl font-bold text-xs">Jaribu Tena</button>
+              <div className="space-y-6 animate-pulse">
+                <div className="h-44 bg-slate-900/40 rounded-3xl border border-white/5" />
+                <div className="h-44 bg-slate-900/40 rounded-3xl border border-white/5" />
               </div>
             ) : (
               uniqueCategories.map((cat, idx) => {
@@ -284,14 +282,14 @@ export default function App() {
           </div>
         )}
 
-        {/* IPTV TAB - GRID VIEW */}
+        {/* LIVE TV TAB - GRID VIEW */}
         {activeTab === 'iptv' && (
           <div className="space-y-6 pt-2">
             <div className="bg-gradient-to-br from-cyan-500/10 to-indigo-500/10 border border-cyan-500/30 rounded-3xl p-5 shadow-xl">
               <h2 className="text-base font-black text-white flex items-center gap-2">
                 <ListTree className="text-cyan-400" size={20} /> Live TV Hub
               </h2>
-              <p className="text-xs text-slate-300 mt-1">Orodha kamili ya chaneli zote kutoka kwenye Supabase.</p>
+              <p className="text-xs text-slate-300 mt-1">Orodha ya chaneli zote za real-time kutoka kwenye database.</p>
             </div>
 
             {uniqueCategories.map((cat, idx) => {
@@ -352,7 +350,7 @@ export default function App() {
         )}
       </main>
 
-      {/* BOTTOM NAVIGATION */}
+      {/* BOTTOM NAVIGATION (3 TABS: HOME, LIVE TV, MY SPACE) */}
       <nav className="fixed bottom-0 inset-x-0 z-50 bg-[#06090e]/95 backdrop-blur-xl border-t border-white/10 px-8 py-2.5 flex items-center justify-between max-w-md mx-auto">
         {[
           { id: 'home', label: 'Home', icon: Home },
