@@ -4,6 +4,16 @@ import {
   Cast, X, Radio, Volume2, Trophy, Tv2, ListTree, Bell
 } from 'lucide-react';
 
+// DEFAULT CHANNELS (ZINAZOTUNZA MUONEKANO WAKO WA KISASA)
+const DEFAULT_CHANNELS = [
+  { id: '1', name: 'Azam Sports 1 HD', category: 'Sports', stream_url: 'https://goliveafrica.media:9998/live/625965017ed73/index.m3u8', is_featured: true },
+  { id: '2', name: 'SuperSport Football', category: 'Sports', stream_url: 'https://goliveafrica.media:9998/live/625965017ed76/index.m3u8', is_featured: false },
+  { id: '3', name: 'Dodoma TV', category: 'Local', stream_url: 'https://edge1.my-live-stream.com/tbc1/index.m3u8', is_featured: false },
+  { id: '4', name: 'ITV Tanzania', category: 'Local', stream_url: 'https://edge2.my-live-stream.com/itv/index.m3u8', is_featured: false },
+  { id: '5', name: 'Clouds TV', category: 'Entertainment', stream_url: 'https://edge1.my-live-stream.com/cloudstv/index.m3u8', is_featured: false },
+  { id: '6', name: 'Wasafi TV', category: 'Entertainment', stream_url: 'https://edge2.my-live-stream.com/wasafi/index.m3u8', is_featured: false }
+];
+
 // COMPONENT YA AUTO-SCROLL KWA KILA CATEGORY (KUTOKA KULIA KUJA KUSHOTO)
 function CategoryRow({ categoryTitle, channels, onSelectChannel, playingChannelId }) {
   const scrollRef = useRef(null);
@@ -51,11 +61,11 @@ function CategoryRow({ categoryTitle, channels, onSelectChannel, playingChannelI
         className="flex items-center gap-3 overflow-x-auto scrollbar-none py-1 scroll-smooth"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
-        {channels.map((channel, index) => {
-          const isSelected = playingChannelId === (channel.id || index);
+        {channels.map((channel) => {
+          const isSelected = playingChannelId === channel.id;
           return (
             <div 
-              key={channel.id || index} 
+              key={channel.id || channel.name} 
               onClick={() => onSelectChannel(channel)}
               className={`w-40 shrink-0 bg-slate-900/80 backdrop-blur-md rounded-2xl overflow-hidden group cursor-pointer border transition-all active:scale-95 p-3 flex flex-col justify-between ${isSelected ? 'border-cyan-400 shadow-lg shadow-cyan-500/20 ring-1 ring-cyan-400' : 'border-white/5 hover:border-cyan-500/40'}`}
             >
@@ -84,8 +94,8 @@ function CategoryRow({ categoryTitle, channels, onSelectChannel, playingChannelI
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('home'); 
-  const [channels, setChannels] = useState([]);
-  const [playingChannel, setPlayingChannel] = useState(null);
+  const [channels, setChannels] = useState(DEFAULT_CHANNELS);
+  const [playingChannel, setPlayingChannel] = useState(DEFAULT_CHANNELS[0]);
 
   // Player States
   const [isPlaying, setIsPlaying] = useState(true);
@@ -95,7 +105,7 @@ export default function App() {
   const videoRef = useRef(null);
   const hlsRef = useRef(null);
 
-  // Load HLS.js & Fetch/Parse Supabase Channels
+  // Load HLS.js & Fetch Supabase Channels
   useEffect(() => {
     if (!document.getElementById('hls-script')) {
       const script = document.createElement('script');
@@ -106,7 +116,6 @@ export default function App() {
     fetchSupabaseChannels();
   }, []);
 
-  // KAZI YA KUVUTA NA KUCHAMBUA CHANELI (PARSING M3U / FETCH CHANNEL MOJA MOJA)
   const fetchSupabaseChannels = async () => {
     try {
       const res = await fetch('https://fqixivwmtggpuftrnxxq.supabase.co/rest/v1/channels?select=*', {
@@ -116,57 +125,16 @@ export default function App() {
         }
       });
       const data = await res.json();
-      
       if (Array.isArray(data) && data.length > 0) {
-        let parsedChannels = [];
-
-        for (const item of data) {
-          // Kama link ni ya playlist (.m3u8 ya nje au github playlist), ichambue moja moja
-          if (item.stream_url && (item.stream_url.includes('playlist.m3u8') || item.stream_url.endsWith('.m3u')) && !item.stream_url.includes('index.m3u8')) {
-            try {
-              const playlistRes = await fetch(`https://corsproxy.io/?${encodeURIComponent(item.stream_url)}`);
-              const playlistText = await playlistRes.text();
-              const lines = playlistText.split('\n');
-
-              let currentName = item.name || 'Channel';
-              let currentGroup = item.category || 'General';
-
-              for (let line of lines) {
-                line = line.trim();
-                if (line.startsWith('#EXTINF:')) {
-                  const nameMatch = line.match(/tvg-name="([^"]+)"/i) || line.match(/,(.+)$/);
-                  const groupMatch = line.match(/group-title="([^"]+)"/i);
-                  if (nameMatch) currentName = nameMatch[1].trim();
-                  if (groupMatch) currentGroup = groupMatch[1].trim();
-                } else if (line && !line.startsWith('#')) {
-                  parsedChannels.push({
-                    id: Math.random().toString(36).substring(2, 9),
-                    name: currentName,
-                    category: currentGroup,
-                    stream_url: line,
-                    is_featured: false
-                  });
-                  currentName = 'Channel';
-                  currentGroup = item.category || 'General';
-                }
-              }
-            } catch (e) {
-              // Kama fetching ya nje imefeli, weka item yenyewe moja kwa moja
-              parsedChannels.push(item);
-            }
-          } else {
-            // Kama ni link ya moja kwa moja ya chaneli
-            parsedChannels.push(item);
-          }
-        }
-
-        setChannels(parsedChannels);
-        if (!playingChannel && parsedChannels.length > 0) {
-          setPlayingChannel(parsedChannels[0]);
+        // Tumia data kutoka Supabase kama zipo
+        const validChannels = data.filter(c => c.stream_url && !c.stream_url.includes('playlist.m3u8'));
+        if (validChannels.length > 0) {
+          setChannels(validChannels);
+          if (!playingChannel) setPlayingChannel(validChannels[0]);
         }
       }
     } catch (err) {
-      console.log('Hitilafu katika kupata data za Supabase.');
+      console.log('Kutumia default channels.');
     }
   };
 
@@ -277,7 +245,7 @@ export default function App() {
             {hasError && (
               <div className="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center p-4 text-center z-20">
                 <Tv2 className="text-rose-500 mb-2" size={32} />
-                <p className="text-xs font-bold text-white">Stream Imegoma Kucheza (CORS/Network)</p>
+                <p className="text-xs font-bold text-white">Stream Imegoma Kucheza</p>
                 <button onClick={() => startStream(playingChannel.stream_url, true)} className="mt-3 px-3 py-1.5 rounded-xl bg-cyan-500 text-black font-bold text-[11px]">Jaribu Proxy Tena</button>
               </div>
             )}
@@ -299,43 +267,34 @@ export default function App() {
           </div>
         )}
 
-        {/* HOME TAB - NA AUTO-SCROLL KWA KILA KATEGORI */}
+        {/* HOME TAB - AUTO SCROLL KWA KILA KATEGORI */}
         {activeTab === 'home' && (
           <div className="space-y-2">
-            {channels.length === 0 ? (
-              <div className="text-center py-12 bg-slate-900/50 rounded-3xl border border-white/5 p-6">
-                <Tv2 className="mx-auto text-cyan-400 mb-2" size={32} />
-                <h3 className="text-sm font-bold text-white">Inachambua Chaneli...</h3>
-                <p className="text-xs text-slate-400 mt-1">Inavuta na kuchambua link kutoka Supabase.</p>
-                <button onClick={fetchSupabaseChannels} className="mt-4 px-4 py-2 bg-cyan-500 text-black rounded-xl font-bold text-xs">Jaribu Tena</button>
-              </div>
-            ) : (
-              uniqueCategories.map((cat, idx) => {
-                const catChannels = channels.filter(c => (c.category || 'Uncategorized') === cat);
-                if (catChannels.length === 0) return null;
+            {uniqueCategories.map((cat, idx) => {
+              const catChannels = channels.filter(c => (c.category || 'Uncategorized') === cat);
+              if (catChannels.length === 0) return null;
 
-                return (
-                  <CategoryRow 
-                    key={idx}
-                    categoryTitle={cat}
-                    channels={catChannels}
-                    onSelectChannel={handlePlayChannel}
-                    playingChannelId={playingChannel?.id}
-                  />
-                );
-              })
-            )}
+              return (
+                <CategoryRow 
+                  key={idx}
+                  categoryTitle={cat}
+                  channels={catChannels}
+                  onSelectChannel={handlePlayChannel}
+                  playingChannelId={playingChannel?.id}
+                />
+              );
+            })}
           </div>
         )}
 
-        {/* IPTV TAB (MWONEKANO WA GRID SAFI) */}
+        {/* IPTV TAB - GRID VIEW */}
         {activeTab === 'iptv' && (
           <div className="space-y-6 pt-2">
             <div className="bg-gradient-to-br from-cyan-500/10 to-indigo-500/10 border border-cyan-500/30 rounded-3xl p-5 shadow-xl">
               <h2 className="text-base font-black text-white flex items-center gap-2">
                 <ListTree className="text-cyan-400" size={20} /> IPTV Channels Hub
               </h2>
-              <p className="text-xs text-slate-300 mt-1">Chaneli zote zimechambuliwa moja moja na kupangwa kwa kategoria na mfumo wa Grid.</p>
+              <p className="text-xs text-slate-300 mt-1">Orodha kamili ya chaneli zote za TV na Michezo zilizopo kwenye mfumo.</p>
             </div>
 
             {uniqueCategories.map((cat, idx) => {
@@ -352,11 +311,11 @@ export default function App() {
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
-                    {catChannels.map((channel, index) => {
-                      const isSelected = playingChannel?.id === (channel.id || index);
+                    {catChannels.map((channel) => {
+                      const isSelected = playingChannel?.id === channel.id;
                       return (
                         <div 
-                          key={channel.id || index} 
+                          key={channel.id || channel.name} 
                           onClick={() => handlePlayChannel(channel)}
                           className={`bg-slate-900/80 backdrop-blur-md rounded-2xl overflow-hidden group cursor-pointer border transition-all active:scale-95 p-3 flex flex-col justify-between ${isSelected ? 'border-cyan-400 shadow-lg shadow-cyan-500/20 ring-1 ring-cyan-400' : 'border-white/5 hover:border-cyan-500/40'}`}
                         >
@@ -398,7 +357,7 @@ export default function App() {
           <div className="space-y-4 pt-4">
              <div className="bg-slate-900/80 rounded-3xl p-5 text-center border border-white/10">
                 <h2 className="font-bold text-base text-white">KadoTV App</h2>
-                <p className="text-xs text-slate-400 mt-1">Total Loaded Channels: {channels.length}</p>
+                <p className="text-xs text-slate-400 mt-1">Total Active Channels: {channels.length}</p>
              </div>
              <button onClick={fetchSupabaseChannels} className="w-full py-3 rounded-2xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 font-bold text-xs flex items-center justify-center gap-2">
                <Radio size={16} /> Re-sync Channels
