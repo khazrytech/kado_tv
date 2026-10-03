@@ -4,16 +4,6 @@ import {
   Cast, X, Radio, Volume2, Trophy, Tv2, ListTree, Bell
 } from 'lucide-react';
 
-// DEFAULT CHANNELS (ZINAZOTUNZA MUONEKANO WAKO WA KISASA)
-const DEFAULT_CHANNELS = [
-  { id: '1', name: 'Azam Sports 1 HD', category: 'Sports', stream_url: 'https://goliveafrica.media:9998/live/625965017ed73/index.m3u8', is_featured: true },
-  { id: '2', name: 'SuperSport Football', category: 'Sports', stream_url: 'https://goliveafrica.media:9998/live/625965017ed76/index.m3u8', is_featured: false },
-  { id: '3', name: 'Dodoma TV', category: 'Local', stream_url: 'https://edge1.my-live-stream.com/tbc1/index.m3u8', is_featured: false },
-  { id: '4', name: 'ITV Tanzania', category: 'Local', stream_url: 'https://edge2.my-live-stream.com/itv/index.m3u8', is_featured: false },
-  { id: '5', name: 'Clouds TV', category: 'Entertainment', stream_url: 'https://edge1.my-live-stream.com/cloudstv/index.m3u8', is_featured: false },
-  { id: '6', name: 'Wasafi TV', category: 'Entertainment', stream_url: 'https://edge2.my-live-stream.com/wasafi/index.m3u8', is_featured: false }
-];
-
 // COMPONENT YA AUTO-SCROLL KWA KILA CATEGORY (KUTOKA KULIA KUJA KUSHOTO)
 function CategoryRow({ categoryTitle, channels, onSelectChannel, playingChannelId }) {
   const scrollRef = useRef(null);
@@ -94,8 +84,8 @@ function CategoryRow({ categoryTitle, channels, onSelectChannel, playingChannelI
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('home'); 
-  const [channels, setChannels] = useState(DEFAULT_CHANNELS);
-  const [playingChannel, setPlayingChannel] = useState(DEFAULT_CHANNELS[0]);
+  const [channels, setChannels] = useState([]);
+  const [playingChannel, setPlayingChannel] = useState(null);
 
   // Player States
   const [isPlaying, setIsPlaying] = useState(true);
@@ -126,14 +116,14 @@ export default function App() {
       });
       const data = await res.json();
       if (Array.isArray(data) && data.length > 0) {
-        const validChannels = data.filter(c => c.stream_url && !c.stream_url.includes('playlist.m3u8'));
-        if (validChannels.length > 0) {
-          setChannels(validChannels);
-          if (!playingChannel) setPlayingChannel(validChannels[0]);
+        setChannels(data);
+        if (!playingChannel) {
+          const featured = data.find(c => c.is_featured) || data[0];
+          setPlayingChannel(featured);
         }
       }
     } catch (err) {
-      console.log('Kutumia default channels.');
+      console.log('Hitilafu katika kupata data za Supabase.');
     }
   };
 
@@ -269,20 +259,28 @@ export default function App() {
         {/* HOME TAB - AUTO SCROLL KWA KILA KATEGORI */}
         {activeTab === 'home' && (
           <div className="space-y-2">
-            {uniqueCategories.map((cat, idx) => {
-              const catChannels = channels.filter(c => (c.category || 'Uncategorized') === cat);
-              if (catChannels.length === 0) return null;
+            {channels.length === 0 ? (
+              <div className="text-center py-12 bg-slate-900/50 rounded-3xl border border-white/5 p-6">
+                <Tv2 className="mx-auto text-cyan-400 mb-2" size={32} />
+                <h3 className="text-sm font-bold text-white">Inapakia Chaneli kutoka Supabase...</h3>
+                <button onClick={fetchSupabaseChannels} className="mt-4 px-4 py-2 bg-cyan-500 text-black rounded-xl font-bold text-xs">Jaribu Tena</button>
+              </div>
+            ) : (
+              uniqueCategories.map((cat, idx) => {
+                const catChannels = channels.filter(c => (c.category || 'Uncategorized') === cat);
+                if (catChannels.length === 0) return null;
 
-              return (
-                <CategoryRow 
-                  key={idx}
-                  categoryTitle={cat}
-                  channels={catChannels}
-                  onSelectChannel={handlePlayChannel}
-                  playingChannelId={playingChannel?.id}
-                />
-              );
-            })}
+                return (
+                  <CategoryRow 
+                    key={idx}
+                    categoryTitle={cat}
+                    channels={catChannels}
+                    onSelectChannel={handlePlayChannel}
+                    playingChannelId={playingChannel?.id}
+                  />
+                );
+              })
+            )}
           </div>
         )}
 
@@ -293,7 +291,7 @@ export default function App() {
               <h2 className="text-base font-black text-white flex items-center gap-2">
                 <ListTree className="text-cyan-400" size={20} /> Live TV Hub
               </h2>
-              <p className="text-xs text-slate-300 mt-1">Orodha kamili ya chaneli zote za TV na Michezo zilizopo kwenye mfumo.</p>
+              <p className="text-xs text-slate-300 mt-1">Orodha kamili ya chaneli zote kutoka kwenye Supabase.</p>
             </div>
 
             {uniqueCategories.map((cat, idx) => {
@@ -354,7 +352,7 @@ export default function App() {
         )}
       </main>
 
-      {/* BOTTOM NAVIGATION (VITEVITU VITATU TU: HOME, LIVE TV, MY SPACE) */}
+      {/* BOTTOM NAVIGATION */}
       <nav className="fixed bottom-0 inset-x-0 z-50 bg-[#06090e]/95 backdrop-blur-xl border-t border-white/10 px-8 py-2.5 flex items-center justify-between max-w-md mx-auto">
         {[
           { id: 'home', label: 'Home', icon: Home },
