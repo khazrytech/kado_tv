@@ -73,6 +73,23 @@ export async function getSeries() {
   return data || [];
 }
 
+
+export async function getIPTVPlaylist() {
+  const { data, error } = await supabase
+    .from("channels")
+    .select("id, name, stream_url, category, is_active")
+    .eq("is_active", true)
+    .not("stream_url", "is", null)
+    .ilike("name", "%IPTV%")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+
+  return data || null;
+}
+
 export async function getCategories() {
   const { data, error } = await supabase
     .from("categories")

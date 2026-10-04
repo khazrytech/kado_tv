@@ -11,11 +11,14 @@ import {
   AlertCircle,
   Wifi,
 } from "lucide-react";
-import HLSPlayer from "./HLSPlayer";
-import { parseM3U, getCategories } from "../lib/iptv";
 
-const IPTV_URL =
-  import.meta.env.VITE_IPTV_M3U_URL || "";
+import HLSPlayer from "./HLSPlayer";
+import {
+  parseM3U,
+  getCategories,
+} from "../lib/iptv";
+
+import { getIPTVPlaylist } from "../lib/api";
 
 function ChannelLogo({ channel }) {
   const [failed, setFailed] = useState(false);
@@ -41,10 +44,12 @@ function ChannelLogo({ channel }) {
 function IPTVCard({ channel, onPlay }) {
   return (
     <button
+      type="button"
       className="iptv-channel-card"
       onClick={() => onPlay(channel)}
     >
       <div className="iptv-card-image">
+
         <ChannelLogo channel={channel} />
 
         <span className="iptv-live-badge">
@@ -53,46 +58,103 @@ function IPTVCard({ channel, onPlay }) {
         </span>
 
         <div className="iptv-play">
-          <Play size={20} fill="currentColor" />
+          <Play
+            size={20}
+            fill="currentColor"
+          />
         </div>
+
       </div>
 
       <div className="iptv-card-info">
-        <strong>{channel.name}</strong>
-        <span>{channel.group}</span>
+        <strong>
+          {channel.name}
+        </strong>
+
+        <span>
+          {channel.group}
+        </span>
       </div>
     </button>
   );
 }
 
 export default function IPTVPage() {
+
   const [channels, setChannels] = useState([]);
-  const [activeCategory, setActiveCategory] = useState("All");
-  const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState("");
-  const [selectedChannel, setSelectedChannel] = useState(null);
-  const [lastUpdated, setLastUpdated] = useState(null);
+
+  const [activeCategory, setActiveCategory] =
+    useState("All");
+
+  const [search, setSearch] =
+    useState("");
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [refreshing, setRefreshing] =
+    useState(false);
+
+  const [error, setError] =
+    useState("");
+
+  const [selectedChannel, setSelectedChannel] =
+    useState(null);
+
+  const [lastUpdated, setLastUpdated] =
+    useState(null);
+
+  const [playlistInfo, setPlaylistInfo] =
+    useState(null);
 
   const loadPlaylist = async () => {
-    if (!IPTV_URL) {
-      setError(
-        "IPTV playlist haijawekwa. Weka VITE_IPTV_M3U_URL kwenye Vercel."
-      );
-      setLoading(false);
-      return;
-    }
 
     try {
+
       setError("");
 
-      const response = await fetch(
-        `${IPTV_URL}${IPTV_URL.includes("?") ? "&" : "?"}_=${Date.now()}`,
-        {
-          cache: "no-store",
-        }
-      );
+      /*
+       * GET IPTV PLAYLIST FROM SUPABASE
+       *
+       * channels.name contains "IPTV"
+       * channels.stream_url contains M3U URL
+       */
+
+      const playlist =
+        await getIPTVPlaylist();
+
+      if (!playlist) {
+        throw new Error(
+          "Hakuna IPTV playlist kwenye Supabase. Weka IPTV kwenye channels table."
+        );
+      }
+
+      if (!playlist.stream_url) {
+        throw new Error(
+          "IPTV stream_url haijawekwa kwenye Supabase."
+        );
+      }
+
+      setPlaylistInfo(playlist);
+
+      /*
+       * Fetch M3U playlist
+       */
+
+      const playlistUrl =
+        `${playlist.stream_url}${
+          playlist.stream_url.includes("?")
+            ? "&"
+            : "?"
+        }_=${Date.now()}`;
+
+      const response =
+        await fetch(
+          playlistUrl,
+          {
+            cache: "no-store",
+          }
+        );
 
       if (!response.ok) {
         throw new Error(
@@ -100,19 +162,52 @@ export default function IPTVPage() {
         );
       }
 
-      const text = await response.text();
-      const parsed = parseM3U(text);
+      const content =
+        await response.text();
+
+      /*
+       * Parse + AUTO CATEGORY
+       */
+
+      const parsed =
+        parseM3U(content);
+
+      if (!parsed.length) {
+        throw new Error(
+          "Playlist imefunguka lakini hakuna channels zilizotambulika."
+        );
+      }
 
       setChannels(parsed);
-      setLastUpdated(new Date());
-    } catch (err) {
-      console.error("IPTV playlist error:", err);
-      setError(
-        "Imeshindikana kufetch IPTV playlist. Hakikisha M3U URL ni sahihi na inaruhusu CORS."
+
+      setLastUpdated(
+        new Date()
       );
+
+      /*
+       * Reset filter after refresh
+       */
+
+      setActiveCategory("All");
+      setSearch("");
+
+    } catch (err) {
+
+      console.error(
+        "IPTV error:",
+        err
+      );
+
+      setError(
+        err?.message ||
+        "Imeshindikana kufetch IPTV playlist."
+      );
+
     } finally {
+
       setLoading(false);
       setRefreshing(false);
+
     }
   };
 
@@ -120,42 +215,100 @@ export default function IPTVPage() {
     loadPlaylist();
   }, []);
 
-  const categories = useMemo(
-    () => getCategories(channels),
-    [channels]
-  );
+  /*
+   * AUTO CATEGORIES
+   */
 
-  const filteredChannels = useMemo(() => {
-    const query = search.trim().toLowerCase();
+  const categories =
+    useMemo(
+      () => getCategories(channels),
+      [channels]
+    );
 
-    return channels.filter((channel) => {
-      const matchesCategory =
-        activeCategory === "All" ||
-        channel.group === activeCategory;
+  /*
+   * FILTER
+   */
 
-      const matchesSearch =
-        !query ||
-        channel.name.toLowerCase().includes(query) ||
-        channel.group.toLowerCase().includes(query);
+  const filteredChannels =
+    useMemo(() => {
 
-      return matchesCategory && matchesSearch;
-    });
-  }, [channels, activeCategory, search]);
+      const query =
+        search
+          .trim()
+          .toLowerCase();
 
-  const groupedChannels = useMemo(() => {
-    if (activeCategory !== "All" || search.trim()) {
-      return [];
-    }
+      return channels.filter(
+        (channel) => {
 
-    return categories
-      .map((category) => ({
-        category,
-        channels: channels
-          .filter((channel) => channel.group === category)
-          .slice(0, 20),
-      }))
-      .filter((item) => item.channels.length > 0);
-  }, [channels, categories, activeCategory, search]);
+          const matchesCategory =
+            activeCategory === "All" ||
+            channel.group === activeCategory;
+
+          const matchesSearch =
+            !query ||
+            channel.name
+              .toLowerCase()
+              .includes(query) ||
+            channel.group
+              .toLowerCase()
+              .includes(query);
+
+          return (
+            matchesCategory &&
+            matchesSearch
+          );
+        }
+      );
+
+    }, [
+      channels,
+      activeCategory,
+      search
+    ]);
+
+  /*
+   * CATEGORY RAILS
+   */
+
+  const groupedChannels =
+    useMemo(() => {
+
+      if (
+        activeCategory !== "All" ||
+        search.trim()
+      ) {
+        return [];
+      }
+
+      return categories
+        .map(category => {
+
+          const categoryChannels =
+            channels.filter(
+              channel =>
+                channel.group === category
+            );
+
+          return {
+            category,
+            total:
+              categoryChannels.length,
+            channels:
+              categoryChannels.slice(0, 20)
+          };
+
+        })
+        .filter(
+          section =>
+            section.channels.length > 0
+        );
+
+    }, [
+      channels,
+      categories,
+      activeCategory,
+      search
+    ]);
 
   const refresh = () => {
     setRefreshing(true);
@@ -164,240 +317,465 @@ export default function IPTVPage() {
 
   return (
     <main className="iptv-page">
+
+      {/* HEADER */}
+
       <section className="iptv-header">
+
         <div>
+
           <div className="iptv-title-row">
+
             <div className="iptv-title-icon">
               <Radio size={25} />
             </div>
 
             <div>
-              <h1>IPTV</h1>
-              <p>Thousands of live channels</p>
+
+              <h1>
+                IPTV
+              </h1>
+
+              <p>
+                Live channels from your playlist
+              </p>
+
             </div>
+
           </div>
+
         </div>
 
         <button
+          type="button"
           className="iptv-refresh"
           onClick={refresh}
           disabled={refreshing}
         >
+
           {refreshing ? (
-            <Loader2 className="spin" size={18} />
+            <Loader2
+              className="spin"
+              size={18}
+            />
           ) : (
             <RefreshCw size={18} />
           )}
-          <span>Refresh</span>
+
+          <span>
+            Refresh
+          </span>
+
         </button>
+
       </section>
 
+      {/* SUPABASE STATUS */}
+
+      {playlistInfo && (
+        <div className="iptv-source">
+
+          <span className="iptv-source-dot" />
+
+          <span>
+            Connected to Supabase
+          </span>
+
+        </div>
+      )}
+
+      {/* STATS */}
+
       <section className="iptv-stats">
+
         <div>
           <Radio size={18} />
+
           <span>
-            <strong>{channels.length.toLocaleString()}</strong>
+            <strong>
+              {channels.length.toLocaleString()}
+            </strong>
+
             Channels
           </span>
         </div>
 
         <div>
           <Tv size={18} />
+
           <span>
-            <strong>{categories.length}</strong>
+            <strong>
+              {categories.length}
+            </strong>
+
             Categories
           </span>
         </div>
 
         <div>
           <Wifi size={18} />
+
           <span>
-            <strong>LIVE</strong>
+            <strong>
+              LIVE
+            </strong>
+
             IPTV
           </span>
         </div>
+
       </section>
 
+      {/* SEARCH */}
+
       <div className="iptv-search">
+
         <Search size={19} />
+
         <input
           type="search"
           placeholder="Search IPTV channels..."
           value={search}
           onChange={(e) => {
-            setSearch(e.target.value);
-            setActiveCategory("All");
+
+            setSearch(
+              e.target.value
+            );
+
+            setActiveCategory(
+              "All"
+            );
+
           }}
         />
 
         {search && (
-          <button onClick={() => setSearch("")}>
+          <button
+            type="button"
+            onClick={() =>
+              setSearch("")
+            }
+          >
             <X size={17} />
           </button>
         )}
+
       </div>
 
+      {/* CATEGORIES */}
+
       {categories.length > 0 && (
+
         <div className="iptv-categories">
+
           <button
+            type="button"
             className={
-              activeCategory === "All" ? "active" : ""
+              activeCategory === "All"
+                ? "active"
+                : ""
             }
             onClick={() => {
-              setActiveCategory("All");
+
+              setActiveCategory(
+                "All"
+              );
+
               setSearch("");
+
             }}
           >
             All
           </button>
 
-          {categories.map((category) => (
-            <button
-              key={category}
-              className={
-                activeCategory === category ? "active" : ""
-              }
-              onClick={() => {
-                setActiveCategory(category);
-                setSearch("");
-              }}
-            >
-              {category}
-            </button>
-          ))}
+          {categories.map(
+            category => (
+
+              <button
+                type="button"
+                key={category}
+                className={
+                  activeCategory === category
+                    ? "active"
+                    : ""
+                }
+                onClick={() => {
+
+                  setActiveCategory(
+                    category
+                  );
+
+                  setSearch("");
+
+                }}
+              >
+                {category}
+              </button>
+
+            )
+          )}
+
         </div>
+
       )}
+
+      {/* LOADING */}
 
       {loading && (
+
         <div className="iptv-state">
-          <Loader2 className="spin" size={35} />
-          <h3>Loading IPTV</h3>
-          <p>Fetching channels...</p>
+
+          <Loader2
+            className="spin"
+            size={35}
+          />
+
+          <h3>
+            Loading IPTV
+          </h3>
+
+          <p>
+            Fetching channels from Supabase playlist...
+          </p>
+
         </div>
+
       )}
+
+      {/* ERROR */}
 
       {!loading && error && (
+
         <div className="iptv-error">
+
           <AlertCircle size={30} />
+
           <div>
-            <h3>IPTV unavailable</h3>
-            <p>{error}</p>
+
+            <h3>
+              IPTV unavailable
+            </h3>
+
+            <p>
+              {error}
+            </p>
+
           </div>
 
-          <button onClick={refresh}>
+          <button
+            type="button"
+            onClick={refresh}
+          >
             Try again
           </button>
+
         </div>
+
       )}
+
+      {/* ALL CATEGORY RAILS */}
 
       {!loading &&
         !error &&
         channels.length > 0 &&
         activeCategory === "All" &&
         !search.trim() && (
+
           <div className="iptv-category-list">
-            {groupedChannels.map((section) => (
-              <section
-                className="iptv-section"
-                key={section.category}
-              >
-                <div className="iptv-section-heading">
-                  <div>
-                    <h2>{section.category}</h2>
-                    <span>
-                      {channels.filter(
-                        (c) => c.group === section.category
-                      ).length}{" "}
-                      channels
-                    </span>
+
+            {groupedChannels.map(
+              section => (
+
+                <section
+                  className="iptv-section"
+                  key={section.category}
+                >
+
+                  <div className="iptv-section-heading">
+
+                    <div>
+
+                      <h2>
+                        {section.category}
+                      </h2>
+
+                      <span>
+                        {section.total} channels
+                      </span>
+
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setActiveCategory(
+                          section.category
+                        )
+                      }
+                    >
+
+                      See all
+
+                      <ChevronRight
+                        size={17}
+                      />
+
+                    </button>
+
                   </div>
 
-                  <button
-                    onClick={() =>
-                      setActiveCategory(section.category)
-                    }
-                  >
-                    See all
-                    <ChevronRight size={17} />
-                  </button>
-                </div>
+                  <div className="iptv-rail">
 
-                <div className="iptv-rail">
-                  {section.channels.map((channel) => (
-                    <IPTVCard
-                      key={channel.id}
-                      channel={channel}
-                      onPlay={setSelectedChannel}
-                    />
-                  ))}
-                </div>
-              </section>
-            ))}
+                    {section.channels.map(
+                      channel => (
+
+                        <IPTVCard
+                          key={channel.id}
+                          channel={channel}
+                          onPlay={
+                            setSelectedChannel
+                          }
+                        />
+
+                      )
+                    )}
+
+                  </div>
+
+                </section>
+
+              )
+            )}
+
           </div>
+
         )}
+
+      {/* FILTERED RESULTS */}
 
       {!loading &&
         !error &&
-        (activeCategory !== "All" || search.trim()) && (
+        (
+          activeCategory !== "All" ||
+          search.trim()
+        ) && (
+
           <section className="iptv-results">
+
             <div className="iptv-results-heading">
+
               <h2>
+
                 {search
                   ? `Results for "${search}"`
                   : activeCategory}
+
               </h2>
 
               <span>
                 {filteredChannels.length} channels
               </span>
+
             </div>
 
             {filteredChannels.length > 0 ? (
+
               <div className="iptv-grid">
-                {filteredChannels.map((channel) => (
-                  <IPTVCard
-                    key={channel.id}
-                    channel={channel}
-                    onPlay={setSelectedChannel}
-                  />
-                ))}
+
+                {filteredChannels.map(
+                  channel => (
+
+                    <IPTVCard
+                      key={channel.id}
+                      channel={channel}
+                      onPlay={
+                        setSelectedChannel
+                      }
+                    />
+
+                  )
+                )}
+
               </div>
+
             ) : (
+
               <div className="iptv-state compact">
+
                 <Search size={30} />
-                <h3>No channels found</h3>
-                <p>Try another search or category.</p>
+
+                <h3>
+                  No channels found
+                </h3>
+
+                <p>
+                  Try another search or category.
+                </p>
+
               </div>
+
             )}
+
           </section>
+
         )}
+
+      {/* EMPTY */}
 
       {!loading &&
         !error &&
         channels.length === 0 && (
+
           <div className="iptv-state">
+
             <Radio size={38} />
-            <h3>No IPTV channels</h3>
-            <p>Your M3U playlist is empty.</p>
+
+            <h3>
+              No IPTV channels
+            </h3>
+
+            <p>
+              Your Supabase IPTV playlist is empty.
+            </p>
+
           </div>
+
         )}
 
+      {/* LAST UPDATED */}
+
       {lastUpdated && (
+
         <div className="iptv-updated">
+
           Updated{" "}
-          {lastUpdated.toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
+          {lastUpdated.toLocaleTimeString(
+            [],
+            {
+              hour: "2-digit",
+              minute: "2-digit"
+            }
+          )}
+
         </div>
+
       )}
 
+      {/* PLAYER */}
+
       {selectedChannel && (
+
         <HLSPlayer
-          channel={selectedChannel}
-          onClose={() => setSelectedChannel(null)}
+          channel={
+            selectedChannel
+          }
+          onClose={() =>
+            setSelectedChannel(null)
+          }
         />
+
       )}
+
     </main>
   );
 }
