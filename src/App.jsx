@@ -1,370 +1,890 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Home, Tv, User, Play, Pause, 
-  Cast, X, Radio, Volume2, Trophy, Tv2, ListTree, Bell
-} from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Home,
+  Tv,
+  User,
+  Play,
+  Pause,
+  Cast,
+  X,
+  Radio,
+  Volume2,
+  Trophy,
+  Tv2,
+  Search,
+  ChevronRight,
+  Star,
+  RefreshCw,
+  Wifi,
+  AlertCircle,
+  Layers3
+} from "lucide-react";
+import { supabase } from "./lib/supabase";
 
-// KATI YA MWANZO ZINAZOWEKA MUONEKANO WAKO HARAKA BILA KUSUBIRI
-const DEFAULT_CHANNELS = [
-  { id: '1', name: 'Azam Sports 1 HD', category: 'Sports', stream_url: 'https://goliveafrica.media:9998/live/625965017ed73/index.m3u8', is_featured: true },
-  { id: '2', name: 'SuperSport Football', category: 'Sports', stream_url: 'https://goliveafrica.media:9998/live/625965017ed76/index.m3u8', is_featured: false },
-  { id: '3', name: 'Dodoma TV', category: 'Local', stream_url: 'https://edge1.my-live-stream.com/tbc1/index.m3u8', is_featured: false },
-  { id: '4', name: 'ITV Tanzania', category: 'Local', stream_url: 'https://edge2.my-live-stream.com/itv/index.m3u8', is_featured: false },
-  { id: '5', name: 'Clouds TV', category: 'Entertainment', stream_url: 'https://edge1.my-live-stream.com/cloudstv/index.m3u8', is_featured: false },
-  { id: '6', name: 'Wasafi TV', category: 'Entertainment', stream_url: 'https://edge2.my-live-stream.com/wasafi/index.m3u8', is_featured: false }
-];
+const CATEGORY_ICONS = {
+  Sports: Trophy,
+  "Local TV": Tv2,
+  Entertainment: Star,
+  News: Radio,
+  Kids: Layers3
+};
 
-// COMPONENT YA AUTO-SCROLL KWA KILA CATEGORY (KUTOKA KULIA KUJA KUSHOTO)
-function CategoryRow({ categoryTitle, channels, onSelectChannel, playingChannelId }) {
-  const scrollRef = useRef(null);
-  const [isPaused, setIsPaused] = useState(false);
+function getCategoryIcon(category) {
+  const key = Object.keys(CATEGORY_ICONS).find(
+    (item) => item.toLowerCase() === String(category || "").toLowerCase()
+  );
 
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
+  return CATEGORY_ICONS[key] || Tv2;
+}
 
-    const timer = setInterval(() => {
-      if (!isPaused && el) {
-        if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 2) {
-          el.scrollLeft = 0; 
-        } else {
-          el.scrollLeft += 1;
-        }
-      }
-    }, 30);
+function normalizeCategory(value) {
+  if (!value) return "Other";
 
-    return () => clearInterval(timer);
-  }, [isPaused]);
+  const text = String(value).trim();
+
+  if (text.toLowerCase() === "local") return "Local TV";
+  if (text.toLowerCase() === "local tv") return "Local TV";
+  if (text.toLowerCase() === "sport") return "Sports";
+  if (text.toLowerCase() === "sports") return "Sports";
+  if (text.toLowerCase() === "entertainment") return "Entertainment";
+  if (text.toLowerCase() === "news") return "News";
+  if (text.toLowerCase() === "kids") return "Kids";
+
+  return text;
+}
+
+function ChannelLogo({ channel, large = false }) {
+  const [failed, setFailed] = useState(false);
+
+  const sizeClass = large
+    ? "channel-logo channel-logo-large"
+    : "channel-logo";
+
+  if (!channel?.logo_url || failed) {
+    return (
+      <div className={`${sizeClass} channel-logo-fallback`}>
+        <Tv2 size={large ? 42 : 28} />
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-3 mt-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xs font-black text-slate-200 uppercase tracking-wider flex items-center gap-2">
-          {categoryTitle.toLowerCase().includes('sport') ? (
-            <Trophy className="text-amber-400" size={16} />
-          ) : (
-            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-          )}
-          {categoryTitle} Channels
-        </h2>
-        <span className="text-[10px] font-semibold text-cyan-400/90 bg-cyan-500/10 px-2.5 py-0.5 rounded-full border border-cyan-500/20">
-          Auto Scroll &rarr;
-        </span>
+    <img
+      src={channel.logo_url}
+      alt={channel.name || "Channel"}
+      className={sizeClass}
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
+function ChannelCard({
+  channel,
+  selected,
+  onSelect,
+  featured = false
+}) {
+  const category = normalizeCategory(channel.category);
+  const CategoryIcon = getCategoryIcon(category);
+
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(channel)}
+      className={`channel-card ${selected ? "channel-card-selected" : ""} ${
+        featured ? "channel-card-featured" : ""
+      }`}
+    >
+      <div className="channel-card-media">
+        <ChannelLogo channel={channel} />
+
+        <div className="live-badge">
+          <span />
+          LIVE
+        </div>
+
+        {channel.is_featured && (
+          <div className="featured-badge">
+            <Star size={10} fill="currentColor" />
+            Featured
+          </div>
+        )}
+
+        <div className="channel-play">
+          <Play size={18} fill="currentColor" />
+        </div>
       </div>
 
-      <div 
-        ref={scrollRef}
-        onMouseEnter={() => setIsPaused(true)}
-        onMouseLeave={() => setIsPaused(false)}
-        onTouchStart={() => setIsPaused(true)}
-        onTouchEnd={() => setIsPaused(false)}
-        className="flex items-center gap-3 overflow-x-auto scrollbar-none py-1 scroll-smooth"
-        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-      >
-        {channels.map((channel) => {
-          const isSelected = playingChannelId === channel.id;
-          return (
-            <div 
-              key={channel.id || channel.name} 
-              onClick={() => onSelectChannel(channel)}
-              className={`w-40 shrink-0 bg-slate-900/80 backdrop-blur-md rounded-2xl overflow-hidden group cursor-pointer border transition-all active:scale-95 p-3 flex flex-col justify-between ${isSelected ? 'border-cyan-400 shadow-lg shadow-cyan-500/20 ring-1 ring-cyan-400' : 'border-white/5 hover:border-cyan-500/40'}`}
-            >
-              <div className="aspect-video w-full bg-slate-950 rounded-xl flex items-center justify-center relative p-2 mb-3 border border-white/5">
-                <span className={`absolute top-2 left-2 px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-wider ${isSelected ? 'bg-cyan-400 text-black' : 'bg-red-600 text-white'}`}>
-                  {isSelected ? 'Playing' : 'Live'}
-                </span>
-                {channel.category?.toLowerCase().includes('sport') ? (
-                  <Trophy className="text-amber-400 group-hover:scale-110 transition-transform" size={26} />
-                ) : (
-                  <Tv2 className="text-cyan-400/80 group-hover:scale-110 transition-transform" size={26} />
-                )}
-              </div>
+      <div className="channel-card-info">
+        <div className="channel-title-row">
+          <h3>{channel.name}</h3>
 
-              <div>
-                <h3 className="font-extrabold text-xs text-white truncate group-hover:text-cyan-300 transition-colors">{channel.name}</h3>
-                <p className="text-[10px] text-slate-400 truncate mt-0.5">{channel.category}</p>
-              </div>
-            </div>
+          <span className="category-mini">
+            <CategoryIcon size={11} />
+          </span>
+        </div>
+
+        <p>{category}</p>
+      </div>
+    </button>
+  );
+}
+
+function HorizontalChannelRow({
+  title,
+  icon,
+  channels,
+  onSelect,
+  selectedId
+}) {
+  if (!channels?.length) return null;
+
+  return (
+    <section className="content-section">
+      <div className="section-heading">
+        <div className="section-title-wrap">
+          {icon}
+          <div>
+            <h2>{title}</h2>
+            <p>{channels.length} channels</p>
+          </div>
+        </div>
+
+        <button type="button" className="see-all-btn">
+          See all
+          <ChevronRight size={15} />
+        </button>
+      </div>
+
+      <div className="horizontal-channel-row scrollbar-none">
+        {channels.map((channel) => (
+          <ChannelCard
+            key={channel.id}
+            channel={channel}
+            selected={selectedId === channel.id}
+            onSelect={onSelect}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function CategoryFilter({ categories, selected, onChange }) {
+  return (
+    <div className="category-filter scrollbar-none">
+      <button
+        type="button"
+        className={`category-pill ${
+          selected === "All" ? "category-pill-active" : ""
+        }`}
+        onClick={() => onChange("All")}
+      >
+        <Layers3 size={14} />
+        All
+      </button>
+
+      {categories.map((category) => {
+        const Icon = getCategoryIcon(category);
+
+        return (
+          <button
+            type="button"
+            key={category}
+            className={`category-pill ${
+              selected === category ? "category-pill-active" : ""
+            }`}
+            onClick={() => onChange(category)}
+          >
+            <Icon size={14} />
+            {category}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function VideoPlayer({
+  channel,
+  onClose
+}) {
+  const videoRef = useRef(null);
+  const hlsRef = useRef(null);
+
+  const [playing, setPlaying] = useState(true);
+  const [muted, setMuted] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadHls = async () => {
+      setLoading(true);
+      setError(false);
+
+      if (!videoRef.current || !channel?.stream_url) {
+        setError(true);
+        setLoading(false);
+        return;
+      }
+
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+
+      const video = videoRef.current;
+
+      try {
+        const HlsModule = await import("hls.js");
+        const Hls = HlsModule.default;
+
+        if (cancelled) return;
+
+        if (Hls.isSupported()) {
+          const hls = new Hls({
+            enableWorker: true,
+            lowLatencyMode: true,
+            backBufferLength: 30,
+            xhrSetup: (xhr) => {
+              xhr.withCredentials = false;
+            }
+          });
+
+          hlsRef.current = hls;
+
+          hls.loadSource(channel.stream_url);
+          hls.attachMedia(video);
+
+          hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            if (!cancelled) {
+              setLoading(false);
+
+              video
+                .play()
+                .then(() => setPlaying(true))
+                .catch(() => setPlaying(false));
+            }
+          });
+
+          hls.on(Hls.Events.ERROR, (_, data) => {
+            if (data?.fatal && !cancelled) {
+              setLoading(false);
+              setError(true);
+            }
+          });
+        } else if (
+          video.canPlayType("application/vnd.apple.mpegurl")
+        ) {
+          video.src = channel.stream_url;
+
+          video.addEventListener(
+            "loadedmetadata",
+            () => {
+              if (!cancelled) {
+                setLoading(false);
+                video
+                  .play()
+                  .then(() => setPlaying(true))
+                  .catch(() => setPlaying(false));
+              }
+            },
+            { once: true }
           );
-        })}
+
+          video.addEventListener(
+            "error",
+            () => {
+              if (!cancelled) {
+                setLoading(false);
+                setError(true);
+              }
+            },
+            { once: true }
+          );
+        } else {
+          setLoading(false);
+          setError(true);
+        }
+      } catch (err) {
+        console.error("HLS player error:", err);
+
+        if (!cancelled) {
+          setLoading(false);
+          setError(true);
+        }
+      }
+    };
+
+    loadHls();
+
+    return () => {
+      cancelled = true;
+
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+
+      if (videoRef.current) {
+        videoRef.current.pause();
+        videoRef.current.removeAttribute("src");
+        videoRef.current.load();
+      }
+    };
+  }, [channel]);
+
+  const togglePlay = () => {
+    if (!videoRef.current) return;
+
+    if (videoRef.current.paused) {
+      videoRef.current
+        .play()
+        .then(() => setPlaying(true))
+        .catch(() => {});
+    } else {
+      videoRef.current.pause();
+      setPlaying(false);
+    }
+  };
+
+  const toggleMute = () => {
+    if (!videoRef.current) return;
+
+    videoRef.current.muted = !videoRef.current.muted;
+    setMuted(videoRef.current.muted);
+  };
+
+  return (
+    <div className="player-shell">
+      <video
+        ref={videoRef}
+        className="player-video"
+        playsInline
+        autoPlay
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+      />
+
+      <div className="player-top-gradient" />
+
+      <div className="player-live-indicator">
+        <span />
+        LIVE
+      </div>
+
+      <button
+        type="button"
+        className="player-close"
+        onClick={onClose}
+        aria-label="Close player"
+      >
+        <X size={17} />
+      </button>
+
+      {loading && (
+        <div className="player-state">
+          <div className="player-spinner" />
+          <span>Connecting to live stream...</span>
+        </div>
+      )}
+
+      {error && (
+        <div className="player-state player-error">
+          <AlertCircle size={34} />
+          <strong>Stream unavailable</strong>
+          <span>
+            This channel could not be played right now.
+          </span>
+        </div>
+      )}
+
+      <div className="player-bottom-gradient" />
+
+      <div className="player-controls">
+        <button
+          type="button"
+          className="player-control-main"
+          onClick={togglePlay}
+        >
+          {playing ? (
+            <Pause size={17} fill="currentColor" />
+          ) : (
+            <Play size={17} fill="currentColor" />
+          )}
+        </button>
+
+        <div className="player-channel-info">
+          <strong>{channel.name}</strong>
+          <span>{normalizeCategory(channel.category)}</span>
+        </div>
+
+        <button
+          type="button"
+          className="player-control"
+          onClick={toggleMute}
+        >
+          <Volume2 size={17} />
+          {muted && <span className="mute-line" />}
+        </button>
       </div>
     </div>
   );
 }
 
+function EmptyState({ loading, error, onRetry }) {
+  if (loading) {
+    return (
+      <div className="empty-state">
+        <div className="empty-spinner" />
+        <h3>Loading channels...</h3>
+        <p>Connecting to KadoTV.</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="empty-state">
+        <AlertCircle size={34} />
+        <h3>Unable to load channels</h3>
+        <p>Check your Supabase connection and try again.</p>
+
+        <button type="button" onClick={onRetry} className="retry-btn">
+          <RefreshCw size={15} />
+          Try again
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="empty-state">
+      <Tv size={34} />
+      <h3>No channels available</h3>
+      <p>
+        Add channels from the KadoTV admin dashboard and they
+        will appear here automatically.
+      </p>
+    </div>
+  );
+}
+
 export default function App() {
-  const [activeTab, setActiveTab] = useState('home'); 
-  const [channels, setChannels] = useState(DEFAULT_CHANNELS);
-  const [playingChannel, setPlayingChannel] = useState(DEFAULT_CHANNELS[0]);
+  const [activeTab, setActiveTab] = useState("home");
+  const [channels, setChannels] = useState([]);
+  const [selectedChannel, setSelectedChannel] = useState(null);
 
-  const [isPlaying, setIsPlaying] = useState(true);
-  const [isMuted, setIsMuted] = useState(false);
-  const [hasError, setHasError] = useState(false);
-  
-  const videoRef = useRef(null);
-  const hlsRef = useRef(null);
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [search, setSearch] = useState("");
 
-  // Load HLS.js & Fetch Supabase in Background Real-Time
-  useEffect(() => {
-    if (!document.getElementById('hls-script')) {
-      const script = document.createElement('script');
-      script.id = 'hls-script';
-      script.src = 'https://cdn.jsdelivr.net/npm/hls.js@latest';
-      document.head.appendChild(script);
-    }
-    fetchSupabaseChannels();
-  }, []);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  const fetchSupabaseChannels = async () => {
+  const loadChannels = async () => {
+    setLoading(true);
+    setError(false);
+
     try {
-      const res = await fetch('https://fqixivwmtggpuftrnxxq.supabase.co/rest/v1/channels?select=*', {
-        headers: {
-          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZxaXhpd3dtdGdncHVmdHJueHhxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDEyMDI3MjMsImV4cCI6MjA1Njc3ODcyM30.4sI6Uo7Q4oQWb4a9G02pW4z_c3-Yg-3hX1b9_p4mX4',
-          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZxaXhpd3dtdGdncHVmdHJueHhxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDEyMDI3MjMsImV4cCI6MjA1Njc3ODcyM30.4sI6Uo7Q4oQWb4a9G02pW4z_c3-Yg-3hX1b9_p4mX4'
-        }
-      });
-      const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) {
-        setChannels(data); // Inasasisha real-time bila kuathiri muonekano
+      const { data, error: supabaseError } = await supabase
+        .from("channels")
+        .select("*")
+        .eq("is_active", true)
+        .order("is_featured", { ascending: false })
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: false });
+
+      if (supabaseError) {
+        throw supabaseError;
       }
+
+      setChannels(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.log('Kutumia default channels.');
-    }
-  };
-
-  // SINGLE HLS PLAYER WITH CORS PROXY FALLBACK
-  const startStream = (url, forceProxy = false) => {
-    if (!videoRef.current || !url) return;
-    setHasError(false);
-    setIsPlaying(true);
-
-    const video = videoRef.current;
-    const targetUrl = forceProxy ? `https://corsproxy.io/?${encodeURIComponent(url)}` : url;
-
-    if (hlsRef.current) {
-      hlsRef.current.destroy();
-      hlsRef.current = null;
-    }
-
-    const initHls = () => {
-      if (window.Hls && window.Hls.isSupported()) {
-        const hls = new window.Hls({ 
-          enableWorker: true, 
-          lowLatencyMode: true,
-          xhrSetup: (xhr) => { xhr.withCredentials = false; }
-        });
-        hlsRef.current = hls;
-        hls.loadSource(targetUrl);
-        hls.attachMedia(video);
-
-        hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
-          video.play().catch(() => {});
-        });
-
-        hls.on(window.Hls.Events.ERROR, (event, data) => {
-          if (data.fatal) {
-            if (!forceProxy) {
-              startStream(url, true);
-            } else {
-              setHasError(true);
-            }
-          }
-        });
-      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        video.src = targetUrl;
-        video.play().catch(() => {});
-      } else {
-        setHasError(true);
-      }
-    };
-
-    if (window.Hls) {
-      initHls();
-    } else {
-      setTimeout(initHls, 600);
+      console.error("KadoTV channels error:", err);
+      setError(true);
+      setChannels([]);
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (!playingChannel) return;
-    startStream(playingChannel.stream_url, false);
+    loadChannels();
+
+    const channel = supabase
+      .channel("kadotv-live-channels")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "channels"
+        },
+        () => {
+          loadChannels();
+        }
+      )
+      .subscribe();
 
     return () => {
-      if (hlsRef.current) {
-        hlsRef.current.destroy();
-        hlsRef.current = null;
-      }
+      supabase.removeChannel(channel);
     };
-  }, [playingChannel]);
+  }, []);
 
-  const uniqueCategories = [...new Set(channels.map(c => c.category || 'Uncategorized'))];
+  const categories = useMemo(() => {
+    const values = channels
+      .map((channel) => normalizeCategory(channel.category))
+      .filter(Boolean);
 
-  const handlePlayChannel = (channel) => {
-    setPlayingChannel(channel);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    return [...new Set(values)].sort((a, b) =>
+      a.localeCompare(b)
+    );
+  }, [channels]);
+
+  const featuredChannels = useMemo(
+    () => channels.filter((channel) => channel.is_featured),
+    [channels]
+  );
+
+  const recentlyAdded = useMemo(() => {
+    return [...channels]
+      .sort(
+        (a, b) =>
+          new Date(b.created_at || 0) -
+          new Date(a.created_at || 0)
+      )
+      .slice(0, 10);
+  }, [channels]);
+
+  const filteredChannels = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    return channels.filter((channel) => {
+      const category = normalizeCategory(channel.category);
+
+      const matchesCategory =
+        selectedCategory === "All" ||
+        category === selectedCategory;
+
+      const matchesSearch =
+        !query ||
+        String(channel.name || "")
+          .toLowerCase()
+          .includes(query) ||
+        category.toLowerCase().includes(query);
+
+      return matchesCategory && matchesSearch;
+    });
+  }, [channels, selectedCategory, search]);
+
+  const handleSelectChannel = (channel) => {
+    setSelectedChannel(channel);
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth"
+    });
   };
 
-  const handleClosePlayer = () => {
-    if (hlsRef.current) hlsRef.current.destroy();
-    setPlayingChannel(null);
+  const handleHome = () => {
+    setActiveTab("home");
+    setSelectedCategory("All");
+    setSearch("");
   };
 
   return (
-    <div className="min-h-screen bg-[#06090e] text-slate-100 pb-24 font-sans">
-      {/* HEADER YA KISASA */}
-      <header className="sticky top-0 z-40 bg-[#06090e]/90 backdrop-blur-xl border-b border-white/5 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-500 via-indigo-500 to-purple-600 flex items-center justify-center font-black text-white text-lg shadow-lg shadow-cyan-500/30">K</div>
-          <span className="font-extrabold text-xl tracking-tight bg-gradient-to-r from-white via-cyan-200 to-cyan-400 bg-clip-text text-transparent">KadoTV</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <button className="p-2 text-slate-400 hover:text-cyan-400 transition-colors"><Cast size={20} /></button>
-          <button className="p-2 text-slate-400 hover:text-cyan-400 transition-colors"><Bell size={20} /></button>
-          <div className="w-8 h-8 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 p-[2px] cursor-pointer shadow-md" onClick={() => setActiveTab('myspace')}>
-            <div className="w-full h-full rounded-full bg-[#06090e] flex items-center justify-center text-xs font-bold text-cyan-400">U</div>
+    <div className="kado-app">
+      <div className="ambient ambient-one" />
+      <div className="ambient ambient-two" />
+
+      <header className="kado-header">
+        <div className="brand">
+          <div className="brand-mark">
+            K
           </div>
+
+          <div>
+            <div className="brand-name">KadoTV</div>
+            <div className="brand-subtitle">
+              Premium Streaming
+            </div>
+          </div>
+        </div>
+
+        <div className="header-actions">
+          <button type="button" className="icon-button">
+            <Cast size={18} />
+          </button>
+
+          <button
+            type="button"
+            className="profile-button"
+            onClick={() => setActiveTab("profile")}
+          >
+            <User size={17} />
+          </button>
         </div>
       </header>
 
-      <main className="max-w-md mx-auto px-4 pt-3">
-        {/* SINGLE HLS VIDEO PLAYER JUU */}
-        {playingChannel && (
-          <div className="relative w-full aspect-video rounded-3xl overflow-hidden border border-cyan-500/30 shadow-2xl bg-slate-950 group mb-6">
-            <video ref={videoRef} playsInline autoPlay className="w-full h-full object-contain" onPlay={() => setIsPlaying(true)} onPause={() => setIsPlaying(false)} />
-            
-            <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-600/90 text-white font-extrabold text-[9px] tracking-wider uppercase shadow-lg">
-              <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" /> Live IPTV
-            </div>
+      <main className="kado-main">
+        {selectedChannel && (
+          <VideoPlayer
+            channel={selectedChannel}
+            onClose={() => setSelectedChannel(null)}
+          />
+        )}
 
-            {hasError && (
-              <div className="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center p-4 text-center z-20">
-                <Tv2 className="text-rose-500 mb-2" size={32} />
-                <p className="text-xs font-bold text-white">Stream Imegoma Kucheza</p>
-                <button onClick={() => startStream(playingChannel.stream_url, true)} className="mt-3 px-3 py-1.5 rounded-xl bg-cyan-500 text-black font-bold text-[11px]">Jaribu Proxy Tena</button>
+        {activeTab === "home" && (
+          <>
+            <section className="hero-section">
+              <div className="hero-glow" />
+
+              <div className="hero-content">
+                <div className="live-pill">
+                  <span />
+                  LIVE TV
+                </div>
+
+                <h1>
+                  Watch your
+                  <br />
+                  <span>favorite channels.</span>
+                </h1>
+
+                <p>
+                  Stream live television, sports and
+                  entertainment in one premium experience.
+                </p>
+
+                <button
+                  type="button"
+                  className="hero-button"
+                  onClick={() => setActiveTab("live")}
+                >
+                  <Play size={16} fill="currentColor" />
+                  Explore Live TV
+                </button>
               </div>
+
+              <div className="hero-orb">
+                <Radio size={82} />
+              </div>
+            </section>
+
+            {!loading && !error && (
+              <>
+                <HorizontalChannelRow
+                  title="Featured Channels"
+                  icon={
+                    <Star
+                      size={18}
+                      className="section-icon gold"
+                      fill="currentColor"
+                    />
+                  }
+                  channels={featuredChannels}
+                  onSelect={handleSelectChannel}
+                  selectedId={selectedChannel?.id}
+                />
+
+                <HorizontalChannelRow
+                  title="Recently Added"
+                  icon={
+                    <Radio
+                      size={18}
+                      className="section-icon cyan"
+                    />
+                  }
+                  channels={recentlyAdded}
+                  onSelect={handleSelectChannel}
+                  selectedId={selectedChannel?.id}
+                />
+
+                {categories.map((category) => {
+                  const Icon = getCategoryIcon(category);
+
+                  const items = channels.filter(
+                    (channel) =>
+                      normalizeCategory(channel.category) ===
+                      category
+                  );
+
+                  return (
+                    <HorizontalChannelRow
+                      key={category}
+                      title={category}
+                      icon={
+                        <Icon
+                          size={18}
+                          className="section-icon cyan"
+                        />
+                      }
+                      channels={items}
+                      onSelect={handleSelectChannel}
+                      selectedId={selectedChannel?.id}
+                    />
+                  );
+                })}
+              </>
             )}
 
-            <button onClick={handleClosePlayer} className="absolute top-3 right-3 z-30 p-2 rounded-full bg-black/70 hover:bg-black text-white border border-white/20 transition-all"><X size={16} /></button>
+            {(loading || error) && (
+              <EmptyState
+                loading={loading}
+                error={error}
+                onRetry={loadChannels}
+              />
+            )}
+          </>
+        )}
 
-            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-black/20 opacity-90 group-hover:opacity-100 transition-opacity p-3 flex flex-col justify-end pointer-events-none">
-              <div className="flex items-center justify-between gap-3 bg-slate-950/85 backdrop-blur-md p-2.5 rounded-2xl border border-white/10 pointer-events-auto shadow-xl">
-                <button onClick={() => { videoRef.current[isPlaying ? 'pause' : 'play'](); setIsPlaying(!isPlaying); }} className="p-2.5 rounded-xl bg-cyan-400 text-black hover:bg-cyan-300 transition-colors">
-                  {isPlaying ? <Pause size={16} /> : <Play size={16} className="fill-current" />}
-                </button>
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-xs font-bold text-white truncate">{playingChannel.name}</h3>
-                  <p className="text-[10px] text-cyan-400 truncate">{playingChannel.category}</p>
-                </div>
-                <button onClick={() => { videoRef.current.muted = !isMuted; setIsMuted(!isMuted); }} className="p-2 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors"><Volume2 size={15} /></button>
+        {activeTab === "live" && (
+          <section className="live-page">
+            <div className="page-heading">
+              <div>
+                <span className="eyebrow">
+                  <Wifi size={13} />
+                  KadoTV Live
+                </span>
+
+                <h1>Live TV</h1>
+
+                <p>
+                  {channels.length} active channels available
+                </p>
               </div>
-            </div>
-          </div>
-        )}
 
-        {/* HOME TAB - NA AUTO-SCROLL KWA KILA KATEGORI */}
-        {activeTab === 'home' && (
-          <div className="space-y-2">
-            {uniqueCategories.map((cat, idx) => {
-              const catChannels = channels.filter(c => (c.category || 'Uncategorized') === cat);
-              if (catChannels.length === 0) return null;
-
-              return (
-                <CategoryRow 
-                  key={idx}
-                  categoryTitle={cat}
-                  channels={catChannels}
-                  onSelectChannel={handlePlayChannel}
-                  playingChannelId={playingChannel?.id}
-                />
-              );
-            })}
-          </div>
-        )}
-
-        {/* LIVE TV TAB - GRID VIEW */}
-        {activeTab === 'iptv' && (
-          <div className="space-y-6 pt-2">
-            <div className="bg-gradient-to-br from-cyan-500/10 to-indigo-500/10 border border-cyan-500/30 rounded-3xl p-5 shadow-xl">
-              <h2 className="text-base font-black text-white flex items-center gap-2">
-                <ListTree className="text-cyan-400" size={20} /> Live TV Hub
-              </h2>
-              <p className="text-xs text-slate-300 mt-1">Orodha kamili ya chaneli zote za TV na Michezo.</p>
+              <button
+                type="button"
+                className="refresh-button"
+                onClick={loadChannels}
+              >
+                <RefreshCw size={16} />
+              </button>
             </div>
 
-            {uniqueCategories.map((cat, idx) => {
-              const catChannels = channels.filter(c => (c.category || 'Uncategorized') === cat);
-              if (catChannels.length === 0) return null;
+            <div className="search-box">
+              <Search size={17} />
+              <input
+                value={search}
+                onChange={(event) =>
+                  setSearch(event.target.value)
+                }
+                placeholder="Search channels..."
+              />
+            </div>
 
-              return (
-                <div key={idx} className="space-y-3">
-                  <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                    <h3 className="text-xs font-extrabold text-cyan-400 uppercase tracking-wider flex items-center gap-2">
-                      {cat.toLowerCase().includes('sport') ? <Trophy size={14} className="text-amber-400" /> : <Tv2 size={14} />}
-                      {cat} ({catChannels.length})
-                    </h3>
-                  </div>
+            <CategoryFilter
+              categories={categories}
+              selected={selectedCategory}
+              onChange={setSelectedCategory}
+            />
 
-                  <div className="grid grid-cols-2 gap-3">
-                    {catChannels.map((channel) => {
-                      const isSelected = playingChannel?.id === channel.id;
-                      return (
-                        <div 
-                          key={channel.id || channel.name} 
-                          onClick={() => handlePlayChannel(channel)}
-                          className={`bg-slate-900/80 backdrop-blur-md rounded-2xl overflow-hidden group cursor-pointer border transition-all active:scale-95 p-3 flex flex-col justify-between ${isSelected ? 'border-cyan-400 shadow-lg shadow-cyan-500/20 ring-1 ring-cyan-400' : 'border-white/5 hover:border-cyan-500/40'}`}
-                        >
-                          <div className="aspect-video w-full bg-slate-950 rounded-xl flex items-center justify-center relative p-2 mb-2 border border-white/5">
-                            <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-wider bg-red-600 text-white">Live</span>
-                            {channel.category?.toLowerCase().includes('sport') ? (
-                              <Trophy className="text-amber-400 group-hover:scale-110 transition-transform" size={24} />
-                            ) : (
-                              <Tv2 className="text-cyan-400 group-hover:scale-110 transition-transform" size={24} />
-                            )}
-                          </div>
-                          <div>
-                            <h4 className="font-bold text-xs text-white truncate">{channel.name}</h4>
-                            <span className="text-[10px] text-cyan-400">{channel.category}</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+            {loading || error ? (
+              <EmptyState
+                loading={loading}
+                error={error}
+                onRetry={loadChannels}
+              />
+            ) : filteredChannels.length === 0 ? (
+              <div className="empty-state">
+                <Search size={34} />
+                <h3>No channels found</h3>
+                <p>
+                  Try another search or category.
+                </p>
+              </div>
+            ) : (
+              <div className="live-channel-grid">
+                {filteredChannels.map((channel) => (
+                  <ChannelCard
+                    key={channel.id}
+                    channel={channel}
+                    selected={
+                      selectedChannel?.id === channel.id
+                    }
+                    onSelect={handleSelectChannel}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
+        {activeTab === "profile" && (
+          <section className="profile-page">
+            <div className="profile-card">
+              <div className="profile-avatar">
+                <User size={30} />
+              </div>
+
+              <h1>KadoTV</h1>
+
+              <p>
+                Your premium streaming experience.
+              </p>
+
+              <div className="profile-stats">
+                <div>
+                  <strong>{channels.length}</strong>
+                  <span>Channels</span>
                 </div>
-              );
-            })}
-          </div>
-        )}
 
-        {/* MYSPACE TAB */}
-        {activeTab === 'myspace' && (
-          <div className="space-y-4 pt-4">
-             <div className="bg-slate-900/80 rounded-3xl p-5 text-center border border-white/10">
-                <h2 className="font-bold text-base text-white">KadoTV App</h2>
-                <p className="text-xs text-slate-400 mt-1">Total Active Channels: {channels.length}</p>
-             </div>
-             <button onClick={fetchSupabaseChannels} className="w-full py-3 rounded-2xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 font-bold text-xs flex items-center justify-center gap-2">
-               <Radio size={16} /> Re-sync Channels
-             </button>
-          </div>
+                <div>
+                  <strong>{featuredChannels.length}</strong>
+                  <span>Featured</span>
+                </div>
+
+                <div>
+                  <strong>{categories.length}</strong>
+                  <span>Categories</span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="profile-refresh"
+                onClick={loadChannels}
+              >
+                <RefreshCw size={16} />
+                Refresh Content
+              </button>
+            </div>
+          </section>
         )}
       </main>
 
-      {/* BOTTOM NAVIGATION (3 TABS: HOME, LIVE TV, MY SPACE) */}
-      <nav className="fixed bottom-0 inset-x-0 z-50 bg-[#06090e]/95 backdrop-blur-xl border-t border-white/10 px-8 py-2.5 flex items-center justify-between max-w-md mx-auto">
-        {[
-          { id: 'home', label: 'Home', icon: Home },
-          { id: 'iptv', label: 'Live TV', icon: Tv },
-          { id: 'myspace', label: 'My Space', icon: User }
-        ].map(tab => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex flex-col items-center gap-1 transition-colors ${isActive ? 'text-cyan-400 font-bold scale-105' : 'text-slate-400 hover:text-slate-200'}`}>
-              <Icon size={20} />
-              <span className="text-[10px] capitalize">{tab.label}</span>
-            </button>
-          );
-        })}
+      <nav className="bottom-nav">
+        <button
+          type="button"
+          className={activeTab === "home" ? "nav-active" : ""}
+          onClick={handleHome}
+        >
+          <Home size={20} />
+          <span>Home</span>
+        </button>
+
+        <button
+          type="button"
+          className={activeTab === "live" ? "nav-active" : ""}
+          onClick={() => setActiveTab("live")}
+        >
+          <Tv size={20} />
+          <span>Live TV</span>
+        </button>
+
+        <button
+          type="button"
+          className={
+            activeTab === "profile" ? "nav-active" : ""
+          }
+          onClick={() => setActiveTab("profile")}
+        >
+          <User size={20} />
+          <span>Profile</span>
+        </button>
       </nav>
     </div>
   );
