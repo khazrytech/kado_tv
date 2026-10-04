@@ -882,6 +882,15 @@ export default function App() {
 
         <button
           type="button"
+          className={activeTab === "iptv" ? "nav-active" : ""}
+          onClick={() => setActiveTab("iptv")}
+        >
+          <Radio size={20} />
+          <span>IPTV</span>
+        </button>
+
+        <button
+          type="button"
           className={
             activeTab === "profile" ? "nav-active" : ""
           }
