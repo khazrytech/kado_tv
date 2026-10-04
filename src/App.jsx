@@ -1,3 +1,4 @@
+import IPTVPage from "./components/IPTVPage";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Home,
@@ -811,6 +812,10 @@ export default function App() {
               </div>
             )}
           </section>
+        )}
+
+        {activeTab === "iptv" && (
+          <IPTVPage />
         )}
 
         {activeTab === "profile" && (
