@@ -119,10 +119,7 @@ export function normalizeCategory(groupTitle = "", channelName = "") {
 
       if (
         group.includes(normalizedKeyword) ||
-        (
-          !group &&
-          name.includes(normalizedKeyword)
-        )
+        name.includes(normalizedKeyword)
       ) {
         return category.name;
       }

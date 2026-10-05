@@ -18,7 +18,6 @@ import {
   getCategories,
 } from "../lib/iptv";
 
-import { getIPTVPlaylist } from "../lib/api";
 
 function ChannelLogo({ channel }) {
   const [failed, setFailed] = useState(false);
@@ -114,43 +113,23 @@ export default function IPTVPage() {
       setError("");
 
       /*
-       * GET IPTV PLAYLIST FROM SUPABASE
-       *
-       * channels.name contains "IPTV"
-       * channels.stream_url contains M3U URL
-       */
-
-      const playlist =
-        await getIPTVPlaylist();
-
-      if (!playlist) {
-        throw new Error(
-          "Hakuna IPTV playlist kwenye Supabase. Weka IPTV kwenye channels table."
-        );
-      }
-
-      if (!playlist.stream_url) {
-        throw new Error(
-          "IPTV stream_url haijawekwa kwenye Supabase."
-        );
-      }
-
-      setPlaylistInfo(playlist);
-
-      /*
-       * Fetch M3U playlist
-       */
-
-      /*
-       * Fetch playlist through Vercel proxy.
-       * This avoids browser CORS restrictions.
+       * Vercel Function reads the IPTV playlist URL
+       * directly from Supabase and downloads the M3U
+       * server-side. This avoids browser CORS problems.
        */
       const response = await fetch(
         `/api/iptv?_=${Date.now()}`,
         {
           cache: "no-store",
+          headers: {
+            Accept: "text/plain",
+          },
         }
       );
+
+      setPlaylistInfo({
+        name: "Supabase IPTV Playlist",
+      });
 
       if (!response.ok) {
         throw new Error(
