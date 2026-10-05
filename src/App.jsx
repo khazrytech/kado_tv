@@ -1,4 +1,5 @@
 import IPTVPage from "./components/IPTVPage";
+import IPTVErrorBoundary from "./components/IPTVErrorBoundary";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Home,
@@ -815,7 +816,9 @@ export default function App() {
         )}
 
         {activeTab === "iptv" && (
-          <IPTVPage />
+          <IPTVErrorBoundary>
+            <IPTVPage />
+          </IPTVErrorBoundary>
         )}
 
         {activeTab === "profile" && (

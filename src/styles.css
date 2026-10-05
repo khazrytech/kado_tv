@@ -1043,7 +1043,7 @@ input:focus-visible {
 
 .profile-stats {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   margin-bottom: 24px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
@@ -1082,7 +1082,7 @@ input:focus-visible {
   width: min(calc(100% - 24px), 430px);
   height: 62px;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   padding: 5px;
   transform: translateX(-50%);
   background: rgba(7, 12, 20, 0.9);
