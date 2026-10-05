@@ -1,6 +1,6 @@
-import React from "react";
+import { Component } from "react";
 
-export default class IPTVErrorBoundary extends React.Component {
+export default class IPTVErrorBoundary extends Component {
   constructor(props) {
     super(props);
 
@@ -53,12 +53,7 @@ export default class IPTVErrorBoundary extends React.Component {
             border: "1px solid rgba(255,255,255,.09)"
           }}
         >
-          <div
-            style={{
-              fontSize: "42px",
-              marginBottom: "12px"
-            }}
-          >
+          <div style={{ fontSize: "42px", marginBottom: "12px" }}>
             ⚠️
           </div>
 
@@ -74,8 +69,7 @@ export default class IPTVErrorBoundary extends React.Component {
               marginBottom: "18px"
             }}
           >
-            Kuna tatizo la browser/runtime kwenye IPTV.
-            Error imezuiwa isiangushe KadoTV yote.
+            Kuna tatizo kwenye IPTV. KadoTV yenyewe haijaanguka.
           </p>
 
           <div
@@ -91,8 +85,7 @@ export default class IPTVErrorBoundary extends React.Component {
               wordBreak: "break-word"
             }}
           >
-            {this.state.error?.message ||
-              "Unknown IPTV runtime error"}
+            {this.state.error?.message || "Unknown IPTV error"}
           </div>
 
           <button
