@@ -141,20 +141,16 @@ export default function IPTVPage() {
        * Fetch M3U playlist
        */
 
-      const playlistUrl =
-        `${playlist.stream_url}${
-          playlist.stream_url.includes("?")
-            ? "&"
-            : "?"
-        }_=${Date.now()}`;
-
-      const response =
-        await fetch(
-          playlistUrl,
-          {
-            cache: "no-store",
-          }
-        );
+      /*
+       * Fetch playlist through Vercel proxy.
+       * This avoids browser CORS restrictions.
+       */
+      const response = await fetch(
+        `/api/iptv?_=${Date.now()}`,
+        {
+          cache: "no-store",
+        }
+      );
 
       if (!response.ok) {
         throw new Error(
