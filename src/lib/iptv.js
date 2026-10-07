@@ -23,6 +23,7 @@ const CATEGORY_RULES = [
       "rugby"
     ]
   },
+
   {
     name: "News",
     keywords: [
@@ -36,6 +37,7 @@ const CATEGORY_RULES = [
       "current affairs"
     ]
   },
+
   {
     name: "Movies",
     keywords: [
@@ -48,6 +50,7 @@ const CATEGORY_RULES = [
       "bollywood"
     ]
   },
+
   {
     name: "Entertainment",
     keywords: [
@@ -62,6 +65,7 @@ const CATEGORY_RULES = [
       "variety"
     ]
   },
+
   {
     name: "Kids",
     keywords: [
@@ -75,6 +79,7 @@ const CATEGORY_RULES = [
       "family"
     ]
   },
+
   {
     name: "Music",
     keywords: [
@@ -86,6 +91,7 @@ const CATEGORY_RULES = [
       "audio"
     ]
   },
+
   {
     name: "Documentary",
     keywords: [
@@ -100,22 +106,46 @@ const CATEGORY_RULES = [
 ];
 
 function normalizeText(value = "") {
-  return value
+  return String(value)
     .toLowerCase()
     .replace(/[|/\\_\-.()[\]{}]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
 
-export function normalizeCategory(groupTitle = "", channelName = "") {
+function isTanzania(
+  country = "",
+  tvgId = "",
+  channelName = "",
+  group = ""
+) {
+  const values = [
+    country,
+    tvgId,
+    channelName,
+    group
+  ].map(normalizeText);
+
+  return values.some(value =>
+    value === "tz" ||
+    value === "tza" ||
+    value.includes("tanzania") ||
+    value.endsWith(".tz") ||
+    value.includes(" tanzania ")
+  );
+}
+
+export function normalizeCategory(
+  groupTitle = "",
+  channelName = ""
+) {
   const group = normalizeText(groupTitle);
   const name = normalizeText(channelName);
 
-  const combined = `${group} ${name}`;
-
   for (const category of CATEGORY_RULES) {
     for (const keyword of category.keywords) {
-      const normalizedKeyword = normalizeText(keyword);
+      const normalizedKeyword =
+        normalizeText(keyword);
 
       if (
         group.includes(normalizedKeyword) ||
@@ -126,8 +156,6 @@ export function normalizeCategory(groupTitle = "", channelName = "") {
     }
   }
 
-  // If the playlist provides a useful group-title,
-  // preserve it instead of throwing it away.
   if (groupTitle?.trim()) {
     return groupTitle.trim();
   }
@@ -142,6 +170,7 @@ export function parseM3U(content = "") {
     .filter(Boolean);
 
   const channels = [];
+  const seen = new Set();
 
   let current = null;
 
@@ -165,7 +194,9 @@ export function parseM3U(content = "") {
           "i"
         );
 
-        return info.match(regex)?.[1]?.trim() || "";
+        return (
+          info.match(regex)?.[1]?.trim() || ""
+        );
       };
 
       const originalGroup =
@@ -173,28 +204,52 @@ export function parseM3U(content = "") {
         getAttr("group") ||
         "";
 
-      const tvgLogo = getAttr("tvg-logo");
-      const tvgId = getAttr("tvg-id");
-      const tvgName = getAttr("tvg-name");
-      const country = getAttr("tvg-country");
-      const language = getAttr("tvg-language");
+      const tvgLogo =
+        getAttr("tvg-logo");
+
+      const tvgId =
+        getAttr("tvg-id");
+
+      const tvgName =
+        getAttr("tvg-name");
+
+      const country =
+        getAttr("tvg-country");
+
+      const language =
+        getAttr("tvg-language");
+
+      const name =
+        rawName ||
+        tvgName ||
+        "Unknown Channel";
+
+      const localTanzania =
+        isTanzania(
+          country,
+          tvgId,
+          name,
+          originalGroup
+        );
 
       current = {
-        name: rawName || tvgName || "Unknown Channel",
-
+        name,
         logo: tvgLogo,
-
         originalGroup,
 
-        group: normalizeCategory(
-          originalGroup,
-          rawName || tvgName
-        ),
+        group: localTanzania
+          ? "Tanzania"
+          : normalizeCategory(
+              originalGroup,
+              name
+            ),
 
+        country,
+        language,
         tvgId,
         tvgName,
-        country,
-        language
+
+        isTanzania: localTanzania
       };
 
       continue;
@@ -208,11 +263,24 @@ export function parseM3U(content = "") {
         line.startsWith("https://")
       )
     ) {
-      channels.push({
-        ...current,
-        url: line,
-        id: `${current.name}-${channels.length}-${line}`
-      });
+      const url = line;
+
+      const duplicateKey =
+        current.tvgId ||
+        `${normalizeText(current.name)}|${url}`;
+
+      if (!seen.has(duplicateKey)) {
+        seen.add(duplicateKey);
+
+        channels.push({
+          ...current,
+          url,
+
+          id:
+            current.tvgId ||
+            `${normalizeText(current.name)}-${channels.length}`
+        });
+      }
 
       current = null;
     }
@@ -222,18 +290,47 @@ export function parseM3U(content = "") {
 }
 
 export function getCategories(channels = []) {
-  return [
+  const categories = [
     ...new Set(
       channels
         .map(channel => channel.group)
         .filter(Boolean)
     )
-  ].sort((a, b) => a.localeCompare(b));
+  ];
+
+  const preferred = [
+    "Tanzania",
+    "Sports",
+    "News",
+    "Movies",
+    "Entertainment",
+    "Kids",
+    "Music",
+    "Documentary",
+    "Other"
+  ];
+
+  return categories.sort((a, b) => {
+    const ai = preferred.indexOf(a);
+    const bi = preferred.indexOf(b);
+
+    if (ai !== -1 && bi !== -1) {
+      return ai - bi;
+    }
+
+    if (ai !== -1) return -1;
+    if (bi !== -1) return 1;
+
+    return a.localeCompare(b);
+  });
 }
 
-export function groupChannelsByCategory(channels = []) {
+export function groupChannelsByCategory(
+  channels = []
+) {
   return channels.reduce((groups, channel) => {
-    const category = channel.group || "Other";
+    const category =
+      channel.group || "Other";
 
     if (!groups[category]) {
       groups[category] = [];

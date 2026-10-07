@@ -15,8 +15,7 @@ export default async function handler(req, res) {
       `&is_active=eq.true` +
       `&stream_url=not.is.null` +
       `&name=ilike.*IPTV*` +
-      `&order=created_at.desc` +
-      `&limit=1`;
+      `&order=created_at.desc`;
 
     const db = await fetch(dbUrl, {
       headers: {
@@ -36,39 +35,71 @@ export default async function handler(req, res) {
 
     const rows = await db.json();
 
-    if (!Array.isArray(rows) || !rows.length) {
+    if (!Array.isArray(rows) || rows.length === 0) {
       return res.status(404).json({
         error: "No IPTV playlist found in Supabase"
       });
     }
 
-    const playlist = rows[0];
+    const playlistUrls = [
+      ...rows.map(row => row.stream_url).filter(Boolean),
 
-    if (!playlist.stream_url) {
-      return res.status(404).json({
-        error: "IPTV stream_url is empty"
+      // Tanzania local channels
+      "https://iptv-org.github.io/iptv/countries/tz.m3u"
+    ];
+
+    const uniqueUrls = [
+      ...new Set(playlistUrls)
+    ];
+
+    const results = await Promise.allSettled(
+      uniqueUrls.map(async (url) => {
+        const remote = await fetch(url, {
+          headers: {
+            "User-Agent": "KadoTV/1.0",
+            "Accept": "text/plain,*/*"
+          }
+        });
+
+        if (!remote.ok) {
+          throw new Error(
+            `${url} returned HTTP ${remote.status}`
+          );
+        }
+
+        return await remote.text();
+      })
+    );
+
+    const validPlaylists = results
+      .filter(result => result.status === "fulfilled")
+      .map(result => result.value)
+      .filter(content =>
+        content.includes("#EXTM3U") ||
+        content.includes("#EXTINF")
+      );
+
+    if (!validPlaylists.length) {
+      return res.status(502).json({
+        error: "None of the IPTV playlists could be loaded."
       });
     }
 
-    const remote = await fetch(playlist.stream_url, {
-      headers: {
-        "User-Agent": "KadoTV/1.0",
-        "Accept": "text/plain,*/*"
-      }
-    });
+    const merged = [
+      "#EXTM3U",
 
-    if (!remote.ok) {
+      ...validPlaylists.map(content =>
+        content
+          .replace(/^\s*#EXTM3U\s*/i, "")
+          .trim()
+      )
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    if (!merged.includes("#EXTINF")) {
       return res.status(502).json({
-        error: `Playlist server returned ${remote.status}`
-      });
-    }
-
-    const content = await remote.text();
-
-    if (!content.includes("#EXTM3U") &&
-        !content.includes("#EXTINF")) {
-      return res.status(502).json({
-        error: "Supabase URL did not return a valid M3U playlist"
+        error: "No valid IPTV channels found."
       });
     }
 
@@ -82,7 +113,7 @@ export default async function handler(req, res) {
       "no-store, no-cache, must-revalidate"
     );
 
-    return res.status(200).send(content);
+    return res.status(200).send(merged);
 
   } catch (error) {
     console.error("KadoTV IPTV API:", error);
